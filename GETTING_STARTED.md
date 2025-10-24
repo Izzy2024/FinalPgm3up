@@ -1,6 +1,31 @@
 # SIGRAA - Getting Started Guide
 
-## Quick Start (5 minutes)
+## Quick Start (1 command!)
+
+### Fastest Way - Automated Launcher
+```bash
+./start.sh
+```
+
+This will:
+1. Clean up ports 8000 and 5173
+2. Start Backend (FastAPI) on http://localhost:8000
+3. Start Frontend (React) on http://localhost:5173
+4. Check both services are running
+5. Display URLs and log locations
+
+Then open in your browser:
+- **Frontend**: http://localhost:5173
+- **Backend Docs**: http://localhost:8000/docs
+
+To stop:
+```bash
+./stop.sh
+```
+
+---
+
+## Traditional Manual Setup (5 minutes)
 
 ### Prerequisites
 - Python 3.9+
@@ -12,16 +37,12 @@
 cd /Users/admin/Documents/UP/proyectofinal
 ```
 
-### Step 2: Run Setup Script
-```bash
-bash scripts/setup.sh
-```
-
-### Step 3: Configure Environment
+### Step 2: Configure Environment
 
 **Backend (.env)**
 ```bash
 cd backend
+cp .env.example .env
 # Edit .env and set:
 DATABASE_URL=postgresql://sigraa_user:sigraa_password@localhost:5432/sigraa_db
 SECRET_KEY=your-secret-key-here
@@ -30,26 +51,29 @@ SECRET_KEY=your-secret-key-here
 **Frontend (.env)**
 ```bash
 cd ../frontend
+cp .env.example .env
 # Edit .env and set:
 VITE_API_URL=http://localhost:8000
 ```
 
-### Step 4: Start Servers
+### Step 3: Start Servers
 
 **Terminal 1 - Backend:**
 ```bash
 cd backend
 source venv/bin/activate
+pip install -r requirements.txt
 uvicorn app.main:app --reload
 ```
 
 **Terminal 2 - Frontend:**
 ```bash
 cd frontend
+npm install
 npm run dev
 ```
 
-### Step 5: Access Application
+### Step 4: Access Application
 - **Frontend**: http://localhost:5173
 - **Backend API**: http://localhost:8000
 - **API Docs**: http://localhost:8000/docs
@@ -144,6 +168,8 @@ sigraa/
 │   │   ├── services/         # Business logic
 │   │   ├── api/routes/       # API endpoints
 │   │   └── main.py           # FastAPI app
+│   ├── tests/                # pytest test files
+│   ├── alembic/              # Database migrations
 │   ├── requirements.txt
 │   └── .env.example
 ├── frontend/
@@ -152,14 +178,37 @@ sigraa/
 │   │   ├── components/       # Reusable components
 │   │   ├── services/         # API calls
 │   │   ├── context/          # State management
+│   │   ├── tests/            # Vitest test files
 │   │   └── App.tsx
 │   ├── package.json
 │   └── .env.example
 ├── data/                     # Uploaded files
 ├── docs/                     # Documentation
+├── start.sh                  # ⭐ One-command launcher
+├── stop.sh                   # Stop services
 ├── ROADMAP.md               # Development roadmap
 ├── TRACKING.md              # Progress tracking
 └── README.md
+```
+
+## Running Tests
+
+### Backend Tests
+```bash
+cd backend
+source venv/bin/activate
+pytest -v                    # All tests
+pytest --cov=app tests/      # With coverage
+pytest tests/test_auth.py -v # Specific test
+```
+
+### Frontend Tests
+```bash
+cd frontend
+npm run test                 # All tests
+npm run test -- --watch     # Watch mode
+npm run test:ui              # UI mode
+npm run test:coverage        # With coverage
 ```
 
 ---
@@ -224,6 +273,18 @@ npm run lint
 
 # Type check
 npm run type-check
+
+# Run tests
+npm run test
+```
+
+### Project Management
+```bash
+# Start entire project
+./start.sh
+
+# Stop all services
+./stop.sh
 ```
 
 ---
@@ -249,6 +310,21 @@ TRUNCATE TABLE articles;
 
 -- Check user permissions
 \du
+```
+
+### Database Migrations
+```bash
+cd backend
+source venv/bin/activate
+
+# Create new migration
+alembic revision --autogenerate -m "description"
+
+# Apply migrations
+alembic upgrade head
+
+# View history
+alembic history
 ```
 
 ---
@@ -280,7 +356,10 @@ psql -U postgres -l
 
 **3. Port 8000 already in use**
 ```bash
-# Use different port
+# Kill existing process
+kill -9 $(lsof -t -i :8000)
+
+# Or use different port
 uvicorn app.main:app --reload --port 8001
 ```
 
@@ -295,25 +374,36 @@ npm install
 
 **2. Port 5173 already in use**
 ```bash
-# Vite will use next available port automatically
+# Kill existing process
+kill -9 $(lsof -t -i :5173)
+
 # Or specify port:
 npm run dev -- --port 3000
+```
+
+**3. Vite build issues**
+```bash
+npm run type-check  # Check TypeScript errors
+npm run lint        # Check linting errors
 ```
 
 ---
 
 ## Next Steps
 
-1. ✅ Complete Setup
+1. ✅ Run `./start.sh` to launch everything
 2. ✅ Verify Backend (http://localhost:8000/docs)
 3. ✅ Verify Frontend (http://localhost:5173)
 4. 📖 Read API Documentation at /docs
-5. 🚀 Start building features!
+5. 🧪 Run tests to verify setup
+6. 🚀 Start building features!
 
 ---
 
 ## Support & Documentation
 
+- **Project Launcher**: See `RUN_PROJECT.md`
+- **Commands Reference**: See `CLAUDE.md`
 - **API Documentation**: http://localhost:8000/docs
 - **Development Guide**: See `docs/development/`
 - **Database Schema**: See `docs/database/`
