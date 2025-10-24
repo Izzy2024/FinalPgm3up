@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, BigInteger, ARRAY
+from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, BigInteger, JSON
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from app.core.database import Base
@@ -9,9 +9,9 @@ class Article(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     title = Column(String(500), nullable=False, index=True)
-    authors = Column(ARRAY(String), default=[])
+    authors = Column(JSON, default=[])
     abstract = Column(Text)
-    keywords = Column(ARRAY(String), default=[])
+    keywords = Column(JSON, default=[])
     publication_year = Column(Integer)
     journal = Column(String(200))
     doi = Column(String(100), unique=True, nullable=True, index=True)

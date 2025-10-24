@@ -1,6 +1,6 @@
 import pytest
 from app.models.user import User
-from app.core.security import hash_password
+from app.core.security import get_password_hash
 from datetime import datetime
 
 
@@ -9,7 +9,7 @@ def test_user_creation(db):
     user = User(
         username="testuser",
         email="test@example.com",
-        password_hash=hash_password("password123"),
+        password_hash=get_password_hash("password123"),
         first_name="Test",
         last_name="User",
     )
@@ -28,12 +28,12 @@ def test_user_unique_email(db):
     user1 = User(
         username="user1",
         email="same@example.com",
-        password_hash=hash_password("pass1"),
+        password_hash=get_password_hash("pass1"),
     )
     user2 = User(
         username="user2",
         email="same@example.com",
-        password_hash=hash_password("pass2"),
+        password_hash=get_password_hash("pass2"),
     )
     
     db.add(user1)
@@ -49,12 +49,12 @@ def test_user_unique_username(db):
     user1 = User(
         username="duplicate",
         email="email1@example.com",
-        password_hash=hash_password("pass1"),
+        password_hash=get_password_hash("pass1"),
     )
     user2 = User(
         username="duplicate",
         email="email2@example.com",
-        password_hash=hash_password("pass2"),
+        password_hash=get_password_hash("pass2"),
     )
     
     db.add(user1)
@@ -70,7 +70,7 @@ def test_user_timestamps(db):
     user = User(
         username="timetest",
         email="time@example.com",
-        password_hash=hash_password("pass"),
+        password_hash=get_password_hash("pass"),
     )
     db.add(user)
     db.commit()

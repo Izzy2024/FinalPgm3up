@@ -1,5 +1,5 @@
 import pytest
-from app.core.security import hash_password, verify_password, create_access_token
+from app.core.security import get_password_hash, verify_password, create_access_token
 from app.models.user import User
 from datetime import timedelta
 
@@ -7,7 +7,7 @@ from datetime import timedelta
 def test_password_hashing():
     """Test password hashing and verification"""
     password = "mySecurePassword123"
-    hashed = hash_password(password)
+    hashed = get_password_hash(password)
     
     assert hashed != password
     assert verify_password(password, hashed) is True
@@ -37,8 +37,8 @@ def test_access_token_expiry():
 def test_password_different_hashes():
     """Test that same password produces different hashes (due to salt)"""
     password = "samePassword"
-    hash1 = hash_password(password)
-    hash2 = hash_password(password)
+    hash1 = get_password_hash(password)
+    hash2 = get_password_hash(password)
     
     assert hash1 != hash2
     assert verify_password(password, hash1) is True

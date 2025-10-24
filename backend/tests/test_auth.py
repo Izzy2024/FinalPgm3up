@@ -1,5 +1,5 @@
 import pytest
-from app.core.security import hash_password
+from app.core.security import get_password_hash
 from app.models.user import User
 
 
@@ -28,7 +28,7 @@ def test_register_duplicate_email(test_client, db):
     user = User(
         username="existing",
         email="existing@example.com",
-        password_hash=hash_password("pass"),
+        password_hash=get_password_hash("pass"),
     )
     db.add(user)
     db.commit()
@@ -50,7 +50,7 @@ def test_login_endpoint(test_client, db):
     user = User(
         username="testuser",
         email="test@example.com",
-        password_hash=hash_password("password123"),
+        password_hash=get_password_hash("password123"),
     )
     db.add(user)
     db.commit()
@@ -69,7 +69,7 @@ def test_login_endpoint(test_client, db):
     assert data["token_type"] == "bearer"
 
 
-def test_login_invalid_credentials(test_client):
+def test_login_invalid_credentials(test_client, db):
     """Test login with invalid credentials"""
     response = test_client.post(
         "/api/auth/token",
@@ -87,7 +87,7 @@ def test_get_current_user(test_client, db):
     user = User(
         username="authtest",
         email="auth@example.com",
-        password_hash=hash_password("password123"),
+        password_hash=get_password_hash("password123"),
     )
     db.add(user)
     db.commit()

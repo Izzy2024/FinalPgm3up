@@ -1,5 +1,26 @@
 # SIGRAA - Phase 2 Commands Reference
 
+## 🚀 Quick Start (One Command!)
+
+### Start Full Project (Backend + Frontend)
+```bash
+./start.sh
+```
+
+This will:
+- Clean up ports 8000 and 5173
+- Start PostgreSQL backend on http://localhost:8000
+- Start React frontend on http://localhost:5173
+- Show real-time logs for both services
+- Monitor startup health
+
+### Stop All Services
+```bash
+./stop.sh
+```
+
+---
+
 ## Backend Setup & Testing
 
 ### Initial Setup
