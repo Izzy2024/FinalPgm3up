@@ -9,17 +9,33 @@ interface AuthState {
   logout: () => void;
 }
 
+const getInitialToken = () => {
+  try {
+    return typeof window !== 'undefined' ? localStorage.getItem("access_token") : null;
+  } catch {
+    return null;
+  }
+};
+
 export const useAuthStore = create<AuthState>((set) => ({
-  token: localStorage.getItem("access_token"),
+  token: getInitialToken(),
   user: null,
-  isAuthenticated: !!localStorage.getItem("access_token"),
+  isAuthenticated: !!getInitialToken(),
   setToken: (token: string) => {
-    localStorage.setItem("access_token", token);
+    try {
+      localStorage.setItem("access_token", token);
+    } catch {
+      // localStorage not available
+    }
     set({ token, isAuthenticated: true });
   },
   setUser: (user: any) => set({ user }),
   logout: () => {
-    localStorage.removeItem("access_token");
+    try {
+      localStorage.removeItem("access_token");
+    } catch {
+      // localStorage not available
+    }
     set({ token: null, user: null, isAuthenticated: false });
   },
 }));
