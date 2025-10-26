@@ -32,12 +32,14 @@ export interface LoginResponse {
 export const authAPI = {
   register: (data: UserRegistration) =>
     apiClient.post("/api/auth/register", data),
-  login: (username: string, password: string) =>
-    apiClient.post<LoginResponse>("/api/auth/token", {
-      username,
-      password,
-      grant_type: "password",
-    }),
+  login: (username: string, password: string) => {
+    const formData = new URLSearchParams();
+    formData.append("username", username);
+    formData.append("password", password);
+    return apiClient.post<LoginResponse>("/api/auth/token", formData, {
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    });
+  },
   getCurrentUser: () => apiClient.get("/api/auth/me"),
 };
 
@@ -53,6 +55,12 @@ export const articlesAPI = {
     if (categoryId) formData.append("category_id", categoryId.toString());
     return apiClient.post("/api/articles/upload", formData, {
       headers: { "Content-Type": "multipart/form-data" },
+    });
+  },
+  uploadFromUrl: (url: string, categoryId?: number) => {
+    return apiClient.post("/api/articles/upload-url", {
+      url,
+      category_id: categoryId,
     });
   },
   update: (id: number, data: any) =>

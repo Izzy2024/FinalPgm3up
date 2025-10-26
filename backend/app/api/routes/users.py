@@ -95,22 +95,44 @@ def get_user_library(
     user_libraries = query.offset(skip).limit(limit).all()
     total = query.count()
     
+    # Get uploaded articles as well
+    uploaded_query = db.query(Article).filter(Article.uploaded_by == current_user.id)
+    uploaded_articles = uploaded_query.offset(skip).limit(limit).all()
+    
+    # Combine both sources
+    all_items = []
+    
+    # Add items from UserLibrary
+    for ul in user_libraries:
+        all_items.append({
+            "id": ul.id,
+            "article_id": ul.article_id,
+            "title": ul.article.title,
+            "authors": ul.article.authors,
+            "status": ul.status,
+            "rating": ul.rating,
+            "notes": ul.notes,
+            "added_at": ul.added_at,
+            "updated_at": ul.updated_at,
+        })
+    
+    # Add uploaded articles
+    for art in uploaded_articles:
+        all_items.append({
+            "id": art.id,
+            "article_id": art.id,
+            "title": art.title,
+            "authors": art.authors,
+            "status": "uploaded",
+            "rating": None,
+            "notes": None,
+            "added_at": art.created_at,
+            "updated_at": art.updated_at,
+        })
+    
     return {
-        "total": total,
-        "items": [
-            {
-                "id": ul.id,
-                "article_id": ul.article_id,
-                "title": ul.article.title,
-                "authors": ul.article.authors,
-                "status": ul.status,
-                "rating": ul.rating,
-                "notes": ul.notes,
-                "added_at": ul.added_at,
-                "updated_at": ul.updated_at,
-            }
-            for ul in user_libraries
-        ]
+        "total": total + uploaded_query.count(),
+        "items": all_items
     }
 
 

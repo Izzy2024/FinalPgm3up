@@ -1,5 +1,11 @@
 import { useState, useEffect } from "react";
+import { 
+  MagnifyingGlassIcon,
+  TrashIcon
+} from "@heroicons/react/24/outline";
+import { StarIcon as StarSolidIcon } from "@heroicons/react/24/solid";
 import { libraryAPI } from "../services/api";
+import { Badge, Input, Button, Table, TableHeader, TableColumn, TableBody, TableRow, TableCell, Dropdown } from "../components/ui";
 
 interface LibraryItem {
   id: number;
@@ -13,11 +19,19 @@ interface LibraryItem {
   updated_at: string;
 }
 
+const STATUS_LABELS = {
+  all: "All Articles",
+  unread: "Unread",
+  reading: "Reading",
+  read: "Read",
+};
+
 export default function Library() {
   const [items, setItems] = useState<LibraryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [filter, setFilter] = useState<"all" | "unread" | "reading" | "read">("all");
+  const [searchQuery, setSearchQuery] = useState("");
   const [skip, setSkip] = useState(0);
   const [total, setTotal] = useState(0);
   const limit = 10;
@@ -70,6 +84,12 @@ export default function Library() {
     }
   };
 
+  const filteredItems = items.filter((item) =>
+    searchQuery === "" ||
+    item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    item.authors.some((author) => author.toLowerCase().includes(searchQuery.toLowerCase()))
+  );
+
   if (error) {
     return (
       <div className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg">
@@ -79,111 +99,155 @@ export default function Library() {
   }
 
   return (
-    <div>
-      <div className="mb-8">
-        <h1 className="text-4xl font-bold">My Library</h1>
-        <p className="text-gray-600 mt-2">
-          Total articles: {total}
-        </p>
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">My Library</h1>
+          <p className="text-gray-600 mt-1">
+            {total} article{total !== 1 ? "s" : ""} in your collection
+          </p>
+        </div>
+        <Button variant="primary" size="md">
+          Import Articles
+        </Button>
       </div>
 
-      <div className="mb-6 flex gap-4">
-        {(["all", "unread", "reading", "read"] as const).map((status) => (
-          <button
-            key={status}
-            onClick={() => {
-              setFilter(status);
-              setSkip(0);
-            }}
-            className={`px-4 py-2 rounded-lg font-medium transition ${
-              filter === status
-                ? "bg-blue-600 text-white"
-                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-            }`}
-          >
-            {status.charAt(0).toUpperCase() + status.slice(1)}
-          </button>
-        ))}
+      <div className="flex flex-col sm:flex-row gap-4">
+        <div className="flex-1">
+          <Input
+            type="text"
+            placeholder="Search by title or author..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            icon={MagnifyingGlassIcon}
+          />
+        </div>
+        
+        <div className="flex gap-2 flex-wrap">
+          {(["all", "unread", "reading", "read"] as const).map((status) => (
+            <Badge
+              key={status}
+              variant={filter === status ? "primary" : "default"}
+              active={filter === status}
+              clickable
+              onClick={() => {
+                setFilter(status);
+                setSkip(0);
+              }}
+            >
+              {STATUS_LABELS[status]}
+            </Badge>
+          ))}
+        </div>
       </div>
 
       {loading ? (
-        <div className="text-center py-8">
-          <p className="text-gray-500">Loading library...</p>
+        <div className="flex items-center justify-center py-12">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto mb-4"></div>
+            <p className="text-gray-500">Loading library...</p>
+          </div>
         </div>
-      ) : items.length === 0 ? (
-        <div className="bg-white p-6 rounded-lg shadow text-center">
-          <p className="text-gray-600">
-            No articles yet. Start by uploading or searching for articles.
+      ) : filteredItems.length === 0 ? (
+        <div className="bg-white p-12 rounded-lg shadow text-center">
+          <p className="text-gray-600 text-lg">
+            {searchQuery
+              ? "No articles match your search."
+              : "No articles yet. Start by uploading or searching for articles."}
           </p>
         </div>
       ) : (
         <>
-          <div className="bg-white rounded-lg shadow overflow-hidden">
-            <table className="w-full">
-              <thead className="bg-gray-50 border-b">
-                <tr>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Title</th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Authors</th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Status</th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Rating</th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {items.map((item) => (
-                  <tr key={item.id} className="border-b hover:bg-gray-50 transition">
-                    <td className="px-6 py-4 text-sm text-gray-900">{item.title}</td>
-                    <td className="px-6 py-4 text-sm text-gray-600">
-                      {Array.isArray(item.authors) ? item.authors.join(", ") : "-"}
-                    </td>
-                    <td className="px-6 py-4 text-sm">
-                      <select
-                        value={item.status}
-                        onChange={(e) =>
-                          handleStatusChange(item.article_id, e.target.value as any)
-                        }
-                        className="px-2 py-1 border rounded bg-white text-sm"
-                      >
-                        <option value="unread">Unread</option>
-                        <option value="reading">Reading</option>
-                        <option value="read">Read</option>
-                      </select>
-                    </td>
-                    <td className="px-6 py-4 text-sm">
-                      {item.rating ? `${item.rating}/5` : "-"}
-                    </td>
-                    <td className="px-6 py-4 text-sm">
-                      <button
-                        onClick={() => handleRemove(item.article_id)}
-                        className="text-red-600 hover:text-red-800 font-medium"
-                      >
-                        Remove
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <Table>
+            <TableHeader>
+              <TableColumn>Title</TableColumn>
+              <TableColumn>Authors</TableColumn>
+              <TableColumn>Status</TableColumn>
+              <TableColumn>Rating</TableColumn>
+              <TableColumn>Actions</TableColumn>
+            </TableHeader>
+            <TableBody>
+              {filteredItems.map((item) => (
+                <TableRow key={item.id}>
+                  <TableCell>
+                    <div>
+                      <p className="font-medium text-gray-900">{item.title}</p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Added {new Date(item.added_at).toLocaleDateString()}
+                      </p>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <p className="text-gray-600">
+                      {Array.isArray(item.authors) && item.authors.length > 0
+                        ? item.authors.join(", ")
+                        : "-"}
+                    </p>
+                  </TableCell>
+                  <TableCell>
+                    <Dropdown
+                      label={`${item.status.charAt(0).toUpperCase()}${item.status.slice(1)}`}
+                      value={item.status}
+                      options={[
+                        { value: "unread", label: "Unread" },
+                        { value: "reading", label: "Reading" },
+                        { value: "read", label: "Read" },
+                      ]}
+                      onChange={(newStatus) => handleStatusChange(item.article_id, newStatus as "unread" | "reading" | "read")}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-1">
+                      {item.rating ? (
+                        <>
+                          {[...Array(5)].map((_, i) => (
+                            <StarSolidIcon
+                              key={i}
+                              className={`h-4 w-4 ${
+                                i < item.rating! ? "text-yellow-400" : "text-gray-300"
+                              }`}
+                            />
+                          ))}
+                        </>
+                      ) : (
+                        <span className="text-gray-400 text-sm">Not rated</span>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleRemove(item.article_id)}
+                    >
+                      <TrashIcon className="h-4 w-4 text-red-600" />
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
 
-          <div className="mt-6 flex justify-between items-center">
-            <button
+          <div className="flex items-center justify-between">
+            <Button
               onClick={() => setSkip(Math.max(0, skip - limit))}
               disabled={skip === 0}
-              className="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg disabled:opacity-50"
+              variant="secondary"
+              size="sm"
             >
               Previous
-            </button>
-            <p className="text-gray-600">
+            </Button>
+            <p className="text-sm text-gray-600">
               Showing {skip + 1}-{Math.min(skip + limit, total)} of {total}
             </p>
-            <button
+            <Button
               onClick={() => setSkip(skip + limit)}
               disabled={skip + limit >= total}
-              className="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg disabled:opacity-50"
+              variant="secondary"
+              size="sm"
             >
               Next
-            </button>
+            </Button>
           </div>
         </>
       )}
