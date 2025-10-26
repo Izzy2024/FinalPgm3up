@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
 import { 
   MagnifyingGlassIcon,
-  TrashIcon
+  TrashIcon,
+  EyeIcon
 } from "@heroicons/react/24/outline";
 import { StarIcon as StarSolidIcon } from "@heroicons/react/24/solid";
-import { libraryAPI } from "../services/api";
-import { Badge, Input, Button, Table, TableHeader, TableColumn, TableBody, TableRow, TableCell, Dropdown } from "../components/ui";
+import { libraryAPI, articlesAPI } from "../services/api";
+import { Badge, Input, Button, Table, TableHeader, TableColumn, TableBody, TableRow, TableCell, Dropdown, ArticleDetailModal, BibliographyModal } from "../components/ui";
 
 interface LibraryItem {
   id: number;
@@ -17,6 +18,13 @@ interface LibraryItem {
   notes: string | null;
   added_at: string;
   updated_at: string;
+  article?: {
+    abstract?: string;
+    journal?: string;
+    publication_year?: number;
+    doi?: string;
+    keywords?: string[];
+  };
 }
 
 const STATUS_LABELS = {
@@ -34,6 +42,9 @@ export default function Library() {
   const [searchQuery, setSearchQuery] = useState("");
   const [skip, setSkip] = useState(0);
   const [total, setTotal] = useState(0);
+  const [selectedArticle, setSelectedArticle] = useState<LibraryItem | null>(null);
+  const [showBibliography, setShowBibliography] = useState(false);
+  const [bibliography, setBibliography] = useState<any>(null);
   const limit = 10;
 
   useEffect(() => {
@@ -79,8 +90,57 @@ export default function Library() {
           item.article_id === articleId ? { ...item, status: newStatus } : item
         )
       );
+      if (selectedArticle && selectedArticle.article_id === articleId) {
+        setSelectedArticle({ ...selectedArticle, status: newStatus });
+      }
     } catch (err) {
       setError("Failed to update article status");
+    }
+  };
+
+  const handleRatingChange = async (articleId: number, rating: number) => {
+    try {
+      await libraryAPI.update(articleId, undefined, rating);
+      setItems(
+        items.map((item) =>
+          item.article_id === articleId ? { ...item, rating } : item
+        )
+      );
+      if (selectedArticle && selectedArticle.article_id === articleId) {
+        setSelectedArticle({ ...selectedArticle, rating });
+      }
+    } catch (err) {
+      setError("Failed to update article rating");
+    }
+  };
+
+  const handleViewDetails = async (item: LibraryItem) => {
+    setSelectedArticle(item);
+  };
+
+  const handleViewBibliography = async () => {
+    if (!selectedArticle) return;
+
+    try {
+      const formats = ["apa", "mla", "chicago", "bibtex", "ris"] as const;
+      const bib: any = {};
+
+      for (const format of formats) {
+        try {
+          const res = await articlesAPI.getBibliography(selectedArticle.article_id, format);
+          bib[format] = res.data.bibliography;
+        } catch (err) {
+          bib[format] = "Unable to generate citation";
+        }
+      }
+
+      setBibliography({
+        title: selectedArticle.title,
+        bibliography: bib,
+      });
+      setShowBibliography(true);
+    } catch (err) {
+      setError("Failed to load bibliography");
     }
   };
 
@@ -214,15 +274,24 @@ export default function Library() {
                       )}
                     </div>
                   </TableCell>
-                  <TableCell>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleRemove(item.article_id)}
-                    >
-                      <TrashIcon className="h-4 w-4 text-red-600" />
-                    </Button>
-                  </TableCell>
+                   <TableCell>
+                     <div className="flex gap-2">
+                       <Button
+                         variant="ghost"
+                         size="sm"
+                         onClick={() => handleViewDetails(item)}
+                       >
+                         <EyeIcon className="h-4 w-4 text-blue-600" />
+                       </Button>
+                       <Button
+                         variant="ghost"
+                         size="sm"
+                         onClick={() => handleRemove(item.article_id)}
+                       >
+                         <TrashIcon className="h-4 w-4 text-red-600" />
+                       </Button>
+                     </div>
+                   </TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -250,6 +319,39 @@ export default function Library() {
             </Button>
           </div>
         </>
+      )}
+
+      {selectedArticle && (
+        <ArticleDetailModal
+          isOpen={!!selectedArticle}
+          onClose={() => setSelectedArticle(null)}
+          article={{
+            id: selectedArticle.article_id,
+            title: selectedArticle.title,
+            authors: selectedArticle.authors,
+            abstract: selectedArticle.article?.abstract,
+            journal: selectedArticle.article?.journal,
+            publication_year: selectedArticle.article?.publication_year,
+            doi: selectedArticle.article?.doi,
+            keywords: selectedArticle.article?.keywords,
+            added_at: selectedArticle.added_at,
+            status: selectedArticle.status,
+            rating: selectedArticle.rating,
+            notes: selectedArticle.notes || undefined,
+          }}
+          onStatusChange={(status) => handleStatusChange(selectedArticle.article_id, status)}
+          onRatingChange={(rating) => handleRatingChange(selectedArticle.article_id, rating)}
+          onBibliography={handleViewBibliography}
+        />
+      )}
+
+      {bibliography && (
+        <BibliographyModal
+          isOpen={showBibliography}
+          onClose={() => setShowBibliography(false)}
+          title={bibliography.title}
+          bibliography={bibliography.bibliography}
+        />
       )}
     </div>
   );

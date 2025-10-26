@@ -8,3 +8,4 @@ export { ProgressItem } from './Progress';
 export { Avatar } from './Avatar';
 export { BibliographyModal } from './BibliographyModal';
 export { ClassificationResult } from './ClassificationResult';
+export { ArticleDetailModal } from './ArticleDetailModal';
