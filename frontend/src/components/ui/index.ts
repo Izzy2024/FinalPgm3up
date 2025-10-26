@@ -6,3 +6,5 @@ export { Table, TableHeader, TableColumn, TableBody, TableRow, TableCell } from 
 export { Dropdown } from './Dropdown';
 export { ProgressItem } from './Progress';
 export { Avatar } from './Avatar';
+export { BibliographyModal } from './BibliographyModal';
+export { ClassificationResult } from './ClassificationResult';

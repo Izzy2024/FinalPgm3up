@@ -8,7 +8,7 @@ import {
   LinkIcon 
 } from "@heroicons/react/24/outline";
 import { articlesAPI } from "../services/api";
-import { Card, Button, ProgressItem, Input } from "../components/ui";
+import { Card, Button, ProgressItem, Input, ClassificationResult, BibliographyModal } from "../components/ui";
 import clsx from "clsx";
 
 interface UploadProgress {
@@ -16,6 +16,11 @@ interface UploadProgress {
   progress: number;
   status: "pending" | "uploading" | "complete" | "error";
   error?: string;
+  articleId?: number;
+  classification?: {
+    suggestedCategory: string | null;
+    scores: Record<string, number>;
+  };
 }
 
 export default function Upload() {
@@ -25,6 +30,8 @@ export default function Upload() {
   const [uploadProgress, setUploadProgress] = useState<UploadProgress[]>([]);
   const [isDragActive, setIsDragActive] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [showBibliography, setShowBibliography] = useState(false);
+  const [currentBibliography, setCurrentBibliography] = useState<any>(null);
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
@@ -68,17 +75,53 @@ export default function Upload() {
     try {
       setUploadProgress([{ ...newProgress, status: "uploading", progress: 10 }]);
 
+      let response: any;
       if (uploadMode === "file" && file) {
-        await articlesAPI.upload(file);
+        response = await articlesAPI.upload(file);
       } else if (uploadMode === "url" && url) {
-        await articlesAPI.uploadFromUrl(url);
+        response = await articlesAPI.uploadFromUrl(url);
       }
+
+      if (!response) return;
+
+      const articleId = response.data.id;
+      setUploadProgress([{ ...newProgress, status: "uploading", progress: 50, articleId }]);
+
+      // Classify the article
+      const classificationRes = await articlesAPI.classify(articleId);
+      const classification = {
+        suggestedCategory: classificationRes.data.suggested_category,
+        scores: classificationRes.data.scores,
+      };
+
+      setUploadProgress([{ ...newProgress, status: "uploading", progress: 75, articleId, classification }]);
+
+      // Get bibliography in all formats
+      const formats = ["apa", "mla", "chicago", "bibtex", "ris"] as const;
+      const bibliography: any = {};
+
+      for (const format of formats) {
+        try {
+          const bibRes = await articlesAPI.getBibliography(articleId, format);
+          bibliography[format] = bibRes.data.bibliography;
+        } catch (err) {
+          bibliography[format] = "Unable to generate citation";
+        }
+      }
+
+      setCurrentBibliography({
+        title: response.data.title,
+        bibliography,
+        articleId,
+      });
 
       setUploadProgress([
         {
           filename,
           progress: 100,
           status: "complete",
+          articleId,
+          classification,
         },
       ]);
 
@@ -86,7 +129,7 @@ export default function Upload() {
       setUrl("");
       setTimeout(() => {
         setUploadProgress([]);
-      }, 2000);
+      }, 3000);
     } catch (err: any) {
       setUploadProgress([
         {
@@ -250,6 +293,14 @@ export default function Upload() {
                         <p>{progress.error}</p>
                       </div>
                     )}
+                    {progress.classification && (
+                      <div className="mt-3">
+                        <ClassificationResult
+                          suggestedCategory={progress.classification.suggestedCategory}
+                          scores={progress.classification.scores}
+                        />
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -267,18 +318,29 @@ export default function Upload() {
             </Button>
           </form>
 
-          {uploadProgress.length > 0 &&
+           {uploadProgress.length > 0 &&
             uploadProgress[0].status === "complete" && (
-              <div className="mt-6 p-4 bg-green-50 border border-green-200 rounded-lg">
-                <div className="flex items-start gap-3">
-                  <CheckCircleIcon className="h-5 w-5 text-green-600 mt-0.5" />
-                  <div>
-                    <p className="font-medium text-green-900">Upload successful!</p>
-                    <p className="text-sm text-green-700 mt-1">
-                      Your article is being processed and will appear in your library shortly.
-                    </p>
+              <div className="mt-6 space-y-4">
+                <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                  <div className="flex items-start gap-3">
+                    <CheckCircleIcon className="h-5 w-5 text-green-600 mt-0.5" />
+                    <div>
+                      <p className="font-medium text-green-900">Upload successful!</p>
+                      <p className="text-sm text-green-700 mt-1">
+                        Your article has been processed and added to your library.
+                      </p>
+                    </div>
                   </div>
                 </div>
+                {currentBibliography && (
+                  <Button
+                    onClick={() => setShowBibliography(true)}
+                    variant="primary"
+                    fullWidth
+                  >
+                    View Citation Formats
+                  </Button>
+                )}
               </div>
             )}
         </Card>
@@ -322,8 +384,17 @@ export default function Upload() {
               </div>
             </div>
           </div>
-        </Card>
-      </div>
-    </div>
-  );
-}
+         </Card>
+       </div>
+
+       {currentBibliography && (
+         <BibliographyModal
+           isOpen={showBibliography}
+           onClose={() => setShowBibliography(false)}
+           title={currentBibliography.title}
+           bibliography={currentBibliography.bibliography}
+         />
+       )}
+     </div>
+   );
+ }

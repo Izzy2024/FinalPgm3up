@@ -1,21 +1,17 @@
 import { useState, useEffect } from "react";
 import { 
   SparklesIcon,
-  BookmarkIcon,
-  CalendarIcon,
-  DocumentTextIcon 
+  BookmarkIcon
 } from "@heroicons/react/24/outline";
 import { recommendationsAPI, libraryAPI } from "../services/api";
 import { Card, Badge, Button } from "../components/ui";
 
 interface Recommendation {
-  id: number;
+  article_id: number;
   title: string;
-  abstract?: string;
   authors?: string[];
-  journal?: string;
-  publication_year?: number;
-  similarity_score?: number;
+  score?: number;
+  reason?: string;
 }
 
 export default function Recommendations() {
@@ -43,25 +39,25 @@ export default function Recommendations() {
     }
   };
 
-  const handleAddToLibrary = async (articleId: number) => {
-    setAddingIds((prev) => new Set(prev).add(articleId));
-    
-    try {
-      await libraryAPI.add(articleId);
-      setRecommendations((prev) => prev.filter((rec) => rec.id !== articleId));
-    } catch (err: any) {
-      alert(
-        err.response?.data?.detail ||
-        "Failed to add article to library"
-      );
-    } finally {
-      setAddingIds((prev) => {
-        const next = new Set(prev);
-        next.delete(articleId);
-        return next;
-      });
-    }
-  };
+   const handleAddToLibrary = async (articleId: number) => {
+     setAddingIds((prev) => new Set(prev).add(articleId));
+     
+     try {
+       await libraryAPI.add(articleId);
+       setRecommendations((prev) => prev.filter((rec) => rec.article_id !== articleId));
+     } catch (err: any) {
+       alert(
+         err.response?.data?.detail ||
+         "Failed to add article to library"
+       );
+     } finally {
+       setAddingIds((prev) => {
+         const next = new Set(prev);
+         next.delete(articleId);
+         return next;
+       });
+     }
+   };
 
   if (error) {
     return (
@@ -103,75 +99,58 @@ export default function Recommendations() {
           </p>
         </Card>
       ) : (
-        <>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {recommendations.map((rec) => (
-              <Card key={rec.id} hover className="flex flex-col">
-                <div className="flex-1">
-                  {rec.similarity_score && (
-                    <div className="mb-3">
-                      <Badge
-                        variant={rec.similarity_score >= 0.8 ? "success" : rec.similarity_score >= 0.6 ? "primary" : "warning"}
-                      >
-                        {Math.round(rec.similarity_score * 100)}% Match
-                      </Badge>
-                    </div>
-                  )}
+         <>
+           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+             {recommendations.map((rec) => (
+               <Card key={rec.article_id} hover className="flex flex-col">
+                 <div className="flex-1">
+                   {rec.score && (
+                     <div className="mb-3">
+                       <Badge
+                         variant={rec.score >= 0.8 ? "success" : rec.score >= 0.6 ? "primary" : "warning"}
+                       >
+                         {Math.round(rec.score * 100)}% Match
+                       </Badge>
+                     </div>
+                   )}
 
-                  <h3 className="text-lg font-semibold text-gray-900 mb-3 line-clamp-2">
-                    {rec.title}
-                  </h3>
+                   <h3 className="text-lg font-semibold text-gray-900 mb-3 line-clamp-2">
+                     {rec.title}
+                   </h3>
 
-                  {rec.authors && rec.authors.length > 0 && (
-                    <p className="text-sm text-gray-600 mb-2">
-                      <span className="font-medium">Authors:</span>{" "}
-                      {Array.isArray(rec.authors) 
-                        ? rec.authors.slice(0, 3).join(", ") + (rec.authors.length > 3 ? " et al." : "")
-                        : rec.authors}
-                    </p>
-                  )}
+                   {rec.authors && rec.authors.length > 0 && (
+                     <p className="text-sm text-gray-600 mb-2">
+                       <span className="font-medium">Authors:</span>{" "}
+                       {Array.isArray(rec.authors) 
+                         ? rec.authors.slice(0, 3).join(", ") + (rec.authors.length > 3 ? " et al." : "")
+                         : rec.authors}
+                     </p>
+                   )}
 
-                  <div className="flex gap-4 text-sm text-gray-500 mb-3">
-                    {rec.journal && (
-                      <div className="flex items-center gap-1">
-                        <DocumentTextIcon className="h-4 w-4" />
-                        <span className="line-clamp-1">{rec.journal}</span>
-                      </div>
-                    )}
-                    {rec.publication_year && (
-                      <div className="flex items-center gap-1">
-                        <CalendarIcon className="h-4 w-4" />
-                        <span>{rec.publication_year}</span>
-                      </div>
-                    )}
-                  </div>
+                   {rec.reason && (
+                     <p className="text-sm text-gray-600 mb-4 p-2 bg-blue-50 rounded">
+                       <span className="font-medium text-blue-900">Why:</span>{" "}
+                       <span className="text-blue-800">{rec.reason}</span>
+                     </p>
+                   )}
+                 </div>
 
-                  {rec.abstract && (
-                    <p className="text-sm text-gray-600 line-clamp-3 mb-4">
-                      {rec.abstract}
-                    </p>
-                  )}
-                </div>
-
-                <div className="flex gap-2 pt-4 border-t border-gray-100">
-                  <Button
-                    onClick={() => handleAddToLibrary(rec.id)}
-                    variant="primary"
-                    size="sm"
-                    fullWidth
-                    loading={addingIds.has(rec.id)}
-                    disabled={addingIds.has(rec.id)}
-                  >
-                    <BookmarkIcon className="h-4 w-4 mr-2" />
-                    Add to Library
-                  </Button>
-                  <Button variant="secondary" size="sm">
-                    Preview
-                  </Button>
-                </div>
-              </Card>
-            ))}
-          </div>
+                 <div className="flex gap-2 pt-4 border-t border-gray-100">
+                   <Button
+                     onClick={() => handleAddToLibrary(rec.article_id)}
+                     variant="primary"
+                     size="sm"
+                     fullWidth
+                     loading={addingIds.has(rec.article_id)}
+                     disabled={addingIds.has(rec.article_id)}
+                   >
+                     <BookmarkIcon className="h-4 w-4 mr-2" />
+                     Add to Library
+                   </Button>
+                 </div>
+               </Card>
+             ))}
+           </div>
 
           {recommendations.length >= limit && (
             <div className="text-center pt-4">

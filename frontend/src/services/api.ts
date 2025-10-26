@@ -66,6 +66,9 @@ export const articlesAPI = {
   update: (id: number, data: any) =>
     apiClient.put(`/api/articles/${id}`, data),
   delete: (id: number) => apiClient.delete(`/api/articles/${id}`),
+  classify: (id: number) => apiClient.get(`/api/articles/${id}/classify`),
+  getBibliography: (id: number, format: "apa" | "mla" | "chicago" | "bibtex" | "ris" = "apa") =>
+    apiClient.get(`/api/articles/${id}/bibliography/${format}`),
 };
 
 export const libraryAPI = {

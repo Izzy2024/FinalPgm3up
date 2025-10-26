@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { MagnifyingGlassIcon, BellIcon, Cog6ToothIcon, ArrowLeftOnRectangleIcon, UserIcon } from "@heroicons/react/24/outline";
+import { MagnifyingGlassIcon, BellIcon, Cog6ToothIcon, ArrowLeftOnRectangleIcon } from "@heroicons/react/24/outline";
 import { Button, Avatar, Input } from "../ui";
 import { useAuthStore } from "../../context/authStore";
 import clsx from "clsx";
