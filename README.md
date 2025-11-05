@@ -71,13 +71,49 @@ sigraa/
 ├── backend/           # FastAPI application
 ├── frontend/          # React application
 ├── data/             # Uploaded files and data
-├── docs/             # Documentation
-└── scripts/          # Utility scripts
+├── docs/             # Documentation (organized by category)
+│   ├── setup/        # Installation and setup guides
+│   ├── phases/       # Phase-specific documentation
+│   ├── implementation/ # Implementation details and plans
+│   ├── tracking/     # Project tracking and status
+│   ├── testing/      # Testing guides
+│   └── system-diagrams/ # System architecture and diagrams
+├── scripts/          # Utility scripts
+└── uxreference/      # UX reference materials
 ```
 
 ## Documentation
 
-See [docs/](./docs/) for detailed documentation.
+### Quick Links
+- **Getting Started**: [docs/setup/START_HERE.md](./docs/setup/START_HERE.md)
+- **Setup Guide**: [docs/setup/GETTING_STARTED.md](./docs/setup/GETTING_STARTED.md)
+- **Running the Project**: [docs/setup/RUN_PROJECT.md](./docs/setup/RUN_PROJECT.md)
+- **Commands Reference**: [CLAUDE.md](./CLAUDE.md)
+
+### Documentation Structure
+- **Setup & Installation** - `docs/setup/`
+  - Initial setup guides
+  - Configuration instructions
+  - Running the project
+
+- **Phase Documentation** - `docs/phases/`
+  - Phase 2 status and setup
+  - Phase 3 planning, status, and completion
+  - Quick start guides for each phase
+
+- **Implementation** - `docs/implementation/`
+  - UX implementation plans
+  - Component documentation
+  - Implementation summaries
+
+- **Project Tracking** - `docs/tracking/`
+  - Current status
+  - Roadmap
+  - Change tracking
+
+- **Testing** - `docs/testing/`
+  - Testing guides
+  - Test procedures
 
 ## Contributing
 
