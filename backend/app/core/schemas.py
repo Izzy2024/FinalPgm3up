@@ -118,3 +118,36 @@ class Token(BaseModel):
 
 class TokenData(BaseModel):
     username: Optional[str] = None
+
+
+class AnnotationBase(BaseModel):
+    highlighted_text: str
+    page_number: Optional[int] = None
+    position_data: Optional[dict] = None
+    color: Optional[str] = "yellow"
+    note: Optional[str] = None
+    tags: Optional[List[str]] = []
+
+
+class AnnotationCreate(AnnotationBase):
+    article_id: int
+
+
+class AnnotationUpdate(BaseModel):
+    highlighted_text: Optional[str] = None
+    page_number: Optional[int] = None
+    position_data: Optional[dict] = None
+    color: Optional[str] = None
+    note: Optional[str] = None
+    tags: Optional[List[str]] = None
+
+
+class AnnotationResponse(AnnotationBase):
+    id: int
+    article_id: int
+    user_id: int
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True

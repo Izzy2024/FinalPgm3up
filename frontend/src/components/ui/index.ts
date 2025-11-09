@@ -9,3 +9,7 @@ export { Avatar } from './Avatar';
 export { BibliographyModal } from './BibliographyModal';
 export { ClassificationResult } from './ClassificationResult';
 export { ArticleDetailModal } from './ArticleDetailModal';
+export { AdvancedFilter } from './AdvancedFilter';
+export type { FilterOptions } from './AdvancedFilter';
+export { AnnotationPanel } from './AnnotationPanel';
+export type { Annotation } from './AnnotationPanel';

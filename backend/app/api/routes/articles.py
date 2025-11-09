@@ -251,12 +251,62 @@ def list_articles(
     skip: int = 0,
     limit: int = 10,
     category_id: int = None,
+    keyword: Optional[str] = None,
+    start_year: Optional[int] = None,
+    end_year: Optional[int] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
     db: Session = Depends(get_db),
 ):
+    """
+    List articles with advanced filtering options:
+    - category_id: Filter by category
+    - keyword: Search in title, abstract, keywords, and authors
+    - start_year/end_year: Filter by publication year range
+    - start_date/end_date: Filter by upload date range (format: YYYY-MM-DD)
+    """
     query = db.query(Article).filter(Article.status == "active")
 
+    # Category filter
     if category_id:
         query = query.filter(Article.category_id == category_id)
+
+    # Keyword search (searches in title, abstract, keywords array, and authors array)
+    if keyword:
+        search_pattern = f"%{keyword}%"
+        query = query.filter(
+            (Article.title.ilike(search_pattern)) |
+            (Article.abstract.ilike(search_pattern)) |
+            (Article.keywords.any(keyword)) |
+            (Article.authors.any(keyword))
+        )
+
+    # Publication year range filter
+    if start_year:
+        query = query.filter(Article.publication_year >= start_year)
+    if end_year:
+        query = query.filter(Article.publication_year <= end_year)
+
+    # Upload date range filter
+    if start_date:
+        try:
+            start_datetime = datetime.fromisoformat(start_date)
+            query = query.filter(Article.created_at >= start_datetime)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid start_date format. Use YYYY-MM-DD")
+
+    if end_date:
+        try:
+            end_datetime = datetime.fromisoformat(end_date)
+            # Add one day to include the entire end date
+            from datetime import timedelta
+            end_datetime = end_datetime + timedelta(days=1)
+            query = query.filter(Article.created_at < end_datetime)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid end_date format. Use YYYY-MM-DD")
+
+    # Order by created_at descending (newest first)
+    query = query.order_by(Article.created_at.desc())
 
     articles = query.offset(skip).limit(limit).all()
     return articles

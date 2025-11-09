@@ -2,8 +2,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import get_settings
 from app.core.database import Base, engine
-from app.api.routes import auth, users, articles, recommendations
-from app.models import User, Article, Category, UserLibrary, Recommendation
+from app.api.routes import auth, users, articles, recommendations, annotations
+from app.models import User, Article, Category, UserLibrary, Recommendation, Annotation
 
 settings = get_settings()
 
@@ -27,6 +27,7 @@ app.include_router(auth.router)
 app.include_router(users.router)
 app.include_router(articles.router)
 app.include_router(recommendations.router)
+app.include_router(annotations.router)
 
 
 @app.get("/")

@@ -43,11 +43,20 @@ export const authAPI = {
   getCurrentUser: () => apiClient.get("/api/auth/me"),
 };
 
+export interface ArticleFilters {
+  skip?: number;
+  limit?: number;
+  category_id?: number;
+  keyword?: string;
+  start_year?: number;
+  end_year?: number;
+  start_date?: string;
+  end_date?: string;
+}
+
 export const articlesAPI = {
-  list: (skip?: number, limit?: number, categoryId?: number) =>
-    apiClient.get("/api/articles/", {
-      params: { skip, limit, category_id: categoryId },
-    }),
+  list: (filters?: ArticleFilters) =>
+    apiClient.get("/api/articles/", { params: filters }),
   get: (id: number) => apiClient.get(`/api/articles/${id}`),
   upload: (file: File, categoryId?: number) => {
     const formData = new FormData();
@@ -97,6 +106,46 @@ export const usersAPI = {
 export const recommendationsAPI = {
   get: (limit?: number) =>
     apiClient.get("/api/recommendations/", { params: { limit } }),
+};
+
+export interface AnnotationCreate {
+  article_id: number;
+  highlighted_text: string;
+  page_number?: number;
+  position_data?: any;
+  color?: "yellow" | "green" | "blue" | "red" | "purple";
+  note?: string;
+  tags?: string[];
+}
+
+export interface AnnotationUpdate {
+  highlighted_text?: string;
+  page_number?: number;
+  position_data?: any;
+  color?: "yellow" | "green" | "blue" | "red" | "purple";
+  note?: string;
+  tags?: string[];
+}
+
+export const annotationsAPI = {
+  create: (data: AnnotationCreate) =>
+    apiClient.post("/api/annotations/", data),
+  getByArticle: (articleId: number, color?: string, tag?: string) =>
+    apiClient.get(`/api/annotations/article/${articleId}`, {
+      params: { color, tag },
+    }),
+  getMyAnnotations: (skip?: number, limit?: number, articleId?: number, color?: string) =>
+    apiClient.get("/api/annotations/my-annotations", {
+      params: { skip, limit, article_id: articleId, color },
+    }),
+  get: (annotationId: number) =>
+    apiClient.get(`/api/annotations/${annotationId}`),
+  update: (annotationId: number, data: AnnotationUpdate) =>
+    apiClient.put(`/api/annotations/${annotationId}`, data),
+  delete: (annotationId: number) =>
+    apiClient.delete(`/api/annotations/${annotationId}`),
+  getStats: (articleId: number) =>
+    apiClient.get(`/api/annotations/article/${articleId}/stats`),
 };
 
 export default apiClient;
