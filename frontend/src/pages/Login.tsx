@@ -68,8 +68,8 @@ export default function Login() {
           <form onSubmit={handleSubmit} className="space-y-5">
             <Input
               type="text"
-              label="Username"
-              placeholder="Enter your username"
+              label="Username or Email"
+              placeholder="Enter your username or email"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               disabled={loading}

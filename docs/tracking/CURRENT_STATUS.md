@@ -141,8 +141,13 @@ TESTING_GUIDE.md                                      [NEW]
 4. Deploy to hosting platform
 
 ### For Phase 4 Enhancements
-- Advanced filtering by date range and keywords
-- Article annotations and highlighting
+-
+
+
+
+
+
+
 - User collaboration features
 - Export library as complete bibliography
 - Email notifications
