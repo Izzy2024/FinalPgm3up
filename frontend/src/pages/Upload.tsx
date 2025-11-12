@@ -21,6 +21,7 @@ interface UploadProgress {
     suggestedCategory: string | null;
     scores: Record<string, number>;
   };
+  autoTopics?: string[];
 }
 
 export default function Upload() {
@@ -85,7 +86,8 @@ export default function Upload() {
       if (!response) return;
 
       const articleId = response.data.id;
-      setUploadProgress([{ ...newProgress, status: "uploading", progress: 50, articleId }]);
+      const autoTopics = response.data.auto_topics || [];
+      setUploadProgress([{ ...newProgress, status: "uploading", progress: 50, articleId, autoTopics }]);
 
       // Classify the article
       const classificationRes = await articlesAPI.classify(articleId);
@@ -94,7 +96,7 @@ export default function Upload() {
         scores: classificationRes.data.scores,
       };
 
-      setUploadProgress([{ ...newProgress, status: "uploading", progress: 75, articleId, classification }]);
+      setUploadProgress([{ ...newProgress, status: "uploading", progress: 75, articleId, classification, autoTopics }]);
 
       // Get bibliography in all formats
       const formats = ["apa", "mla", "chicago", "bibtex", "ris"] as const;
@@ -122,6 +124,7 @@ export default function Upload() {
           status: "complete",
           articleId,
           classification,
+          autoTopics,
         },
       ]);
 
@@ -260,7 +263,7 @@ export default function Upload() {
                   onChange={(e) => setUrl(e.target.value)}
                   disabled={uploading}
                   icon={LinkIcon}
-                  helperText="Enter a URL to an article (ArXiv, PubMed, etc.)"
+                  helperText="Soporta Google Scholar, ArXiv, ResearchGate, Academia.edu y más"
                   required
                 />
                 {url && (
@@ -291,6 +294,30 @@ export default function Upload() {
                       <div className="mt-2 flex items-start gap-2 text-sm text-red-600">
                         <XCircleIcon className="h-5 w-5 flex-shrink-0" />
                         <p>{progress.error}</p>
+                      </div>
+                    )}
+                    {progress.autoTopics && progress.autoTopics.length > 0 && (
+                      <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                        <div className="flex items-start gap-2">
+                          <svg className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                          </svg>
+                          <div className="flex-1">
+                            <p className="text-sm font-semibold text-blue-900 mb-2">
+                              Topics Detectados Automáticamente
+                            </p>
+                            <div className="flex flex-wrap gap-2">
+                              {progress.autoTopics.map((topic, i) => (
+                                <span
+                                  key={i}
+                                  className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
+                                >
+                                  {topic}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
                       </div>
                     )}
                     {progress.classification && (
@@ -366,9 +393,9 @@ export default function Upload() {
                 2
               </div>
               <div>
-                <p className="font-medium text-gray-900">Classification</p>
+                <p className="font-medium text-gray-900">Detección Automática de Topics</p>
                 <p className="text-sm text-gray-600">
-                  The article is automatically categorized based on its content
+                  El sistema analiza el contenido y detecta automáticamente los topics relevantes (Educación, Ciencia, IA, Salud, etc.)
                 </p>
               </div>
             </div>
@@ -377,9 +404,20 @@ export default function Upload() {
                 3
               </div>
               <div>
-                <p className="font-medium text-gray-900">Added to Library</p>
+                <p className="font-medium text-gray-900">Classification</p>
                 <p className="text-sm text-gray-600">
-                  The article appears in your library and recommendations are generated
+                  El artículo es categorizado automáticamente según su contenido
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-3">
+              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary-100 flex items-center justify-center text-sm font-semibold text-primary-600">
+                4
+              </div>
+              <div>
+                <p className="font-medium text-gray-900">Agregado a tu Biblioteca</p>
+                <p className="text-sm text-gray-600">
+                  El artículo aparece en tu biblioteca y se generan recomendaciones automáticas
                 </p>
               </div>
             </div>

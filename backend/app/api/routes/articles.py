@@ -149,16 +149,74 @@ async def upload_article(
 
 
 def extract_pdf_url_from_html(html_content: str, base_url: str) -> Optional[str]:
+    """
+    Enhanced PDF extraction supporting Google Scholar, ResearchGate,
+    Academia.edu, and other academic platforms.
+    """
     soup = BeautifulSoup(html_content, 'html.parser')
-    
+    from urllib.parse import urljoin, urlparse, parse_qs
+
+    # Google Scholar specific patterns
+    if 'scholar.google' in base_url:
+        # Look for PDF links in Google Scholar results
+        for link in soup.find_all('a', href=True):
+            href = link.get('href', '')
+            # Google Scholar often has [PDF] links
+            if link.text.strip().upper() == '[PDF]' or 'PDF' in link.text:
+                pdf_url = urljoin(base_url, href)
+                return pdf_url
+
+        # Check for gs_ggsW class (Google Scholar's PDF viewer)
+        gs_link = soup.find('div', class_='gs_ggsW')
+        if gs_link:
+            pdf_link = gs_link.find('a', href=True)
+            if pdf_link:
+                return urljoin(base_url, pdf_link['href'])
+
+    # ResearchGate specific patterns
+    if 'researchgate.net' in base_url:
+        # Look for download button
+        download_link = soup.find('a', {'data-test-id': 'work-download-button'})
+        if download_link and download_link.get('href'):
+            return urljoin(base_url, download_link['href'])
+
+    # Academia.edu specific patterns
+    if 'academia.edu' in base_url:
+        download_link = soup.find('a', class_=lambda x: x and 'download' in x.lower() if x else False)
+        if download_link and download_link.get('href'):
+            return urljoin(base_url, download_link['href'])
+
+    # ArXiv specific patterns
+    if 'arxiv.org' in base_url:
+        # Convert abstract URL to PDF URL
+        parsed = urlparse(base_url)
+        if '/abs/' in parsed.path:
+            pdf_path = parsed.path.replace('/abs/', '/pdf/') + '.pdf'
+            return f"{parsed.scheme}://{parsed.netloc}{pdf_path}"
+
+    # General PDF extraction patterns (ordered by reliability)
     pdf_patterns = [
-        ('a', {'href': lambda x: x and '.pdf' in x.lower()}),
-        ('a', {'class': lambda x: x and 'download' in ' '.join(x).lower()}),
-        ('a', {'title': lambda x: x and 'pdf' in x.lower()}),
+        # Meta tags (most reliable)
         ('meta', {'name': 'citation_pdf_url'}),
+        ('meta', {'property': 'og:url', 'content': lambda x: x and '.pdf' in x.lower()}),
+
+        # Link tags
         ('link', {'rel': 'alternate', 'type': 'application/pdf'}),
+
+        # Buttons and download links (common in academic sites)
+        ('a', {'class': lambda x: x and any(c in ' '.join(x).lower() for c in ['download-pdf', 'pdf-download', 'download-button']) if x else False}),
+        ('a', {'id': lambda x: x and 'pdf' in x.lower() if x else False}),
+        ('button', {'class': lambda x: x and 'pdf' in ' '.join(x).lower() if x else False}),
+
+        # Direct PDF links
+        ('a', {'href': lambda x: x and x.lower().endswith('.pdf')}),
+        ('a', {'href': lambda x: x and '/pdf/' in x.lower()}),
+
+        # Text-based detection
+        ('a', {'title': lambda x: x and 'pdf' in x.lower() if x else False}),
+        ('a', {'class': lambda x: x and 'download' in ' '.join(x).lower() if x else False}),
     ]
-    
+
     for tag, attrs in pdf_patterns:
         element = soup.find(tag, attrs)
         if element:
@@ -166,15 +224,29 @@ def extract_pdf_url_from_html(html_content: str, base_url: str) -> Optional[str]
                 pdf_url = element.get('content')
             elif tag == 'link':
                 pdf_url = element.get('href')
+            elif tag == 'button':
+                # For buttons, look for onclick or data attributes
+                pdf_url = element.get('data-url') or element.get('data-href')
+                if not pdf_url:
+                    continue
             else:
                 pdf_url = element.get('href')
-            
+
             if pdf_url:
+                # Clean and normalize URL
                 if not pdf_url.startswith('http'):
-                    from urllib.parse import urljoin
                     pdf_url = urljoin(base_url, pdf_url)
                 return pdf_url
-    
+
+    # Last resort: look for any link containing "pdf" in visible text
+    for link in soup.find_all('a', href=True):
+        text = link.get_text().lower()
+        if 'download' in text and 'pdf' in text:
+            href = link['href']
+            if not href.startswith('http'):
+                href = urljoin(base_url, href)
+            return href
+
     return None
 
 
