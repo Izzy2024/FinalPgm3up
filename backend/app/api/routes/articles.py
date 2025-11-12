@@ -17,12 +17,15 @@ from app.core.schemas import (
     BatchSummaryRequest,
     BatchSummaryResponse,
     SummaryResult,
+    MultiDocumentSummaryRequest,
+    MultiDocumentSummaryResponse,
 )
 from app.services.metadata_extractor import MetadataExtractor
 from app.services.classifier import ArticleClassifier
 from app.services.bibliography_generator import BibliographyGenerator
 from app.services.summarizer import ArticleSummarizer
 from app.services.topic_classifier import TopicClassifier
+from app.services.multi_document_summarizer import MultiDocumentSummarizer
 from app.models import User, Article, Category, UserLibrary
 from app.core.config import get_settings
 import logging
@@ -608,19 +611,109 @@ def classify_article(
     article = db.query(Article).filter(Article.id == article_id).first()
     if not article:
         raise HTTPException(status_code=404, detail="Article not found")
-    
+
     classifier = ArticleClassifier()
     scores = classifier.classify_by_keywords(
         article.title or "",
         article.abstract or "",
         article.keywords or []
     )
-    
+
     top_category = max(scores, key=scores.get) if scores else None
-    
+
     return {
         "article_id": article.id,
         "title": article.title,
         "suggested_category": top_category,
         "scores": scores
     }
+
+
+@router.post("/summaries/multi-document", response_model=MultiDocumentSummaryResponse)
+def summarize_multiple_documents(
+    payload: MultiDocumentSummaryRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Generate synthesis, comparison, or gap analysis across multiple documents.
+
+    Modes:
+    - synthesis: Synthesizes common themes and findings
+    - comparison: Compares and contrasts approaches and results
+    - gaps: Identifies research gaps and future opportunities
+    """
+    if not payload.article_ids:
+        raise HTTPException(status_code=400, detail="article_ids cannot be empty.")
+
+    if len(payload.article_ids) < 2:
+        raise HTTPException(
+            status_code=400,
+            detail="Multi-document analysis requires at least 2 articles."
+        )
+
+    if len(payload.article_ids) > 10:
+        raise HTTPException(
+            status_code=400,
+            detail="Maximum 10 articles allowed for multi-document analysis."
+        )
+
+    # Fetch articles
+    articles = []
+    for article_id in payload.article_ids:
+        article = db.query(Article).filter(
+            Article.id == article_id,
+            Article.status == "active"
+        ).first()
+        if not article:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Article {article_id} not found or inactive."
+            )
+        articles.append(article)
+
+    # Generate individual summaries first
+    summarizer = ArticleSummarizer(settings.groq_api_key)
+    individual_summaries = []
+
+    logger.info(f"Generating individual summaries for {len(articles)} articles")
+    for article in articles:
+        try:
+            summary, _ = summarizer.summarize_article(
+                article,
+                method="groq",
+                level="detailed",  # Use detailed for multi-doc analysis
+            )
+            individual_summaries.append(summary)
+        except Exception as e:
+            logger.error(f"Failed to summarize article {article.id}: {e}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to summarize article {article.id}: {str(e)}"
+            )
+
+    # Generate multi-document analysis
+    logger.info(f"Generating {payload.mode} analysis for {len(articles)} articles")
+    multi_summarizer = MultiDocumentSummarizer(settings.groq_api_key)
+
+    try:
+        final_summary = multi_summarizer.summarize_multiple(
+            articles=articles,
+            individual_summaries=individual_summaries,
+            mode=payload.mode,
+            level=payload.level,
+        )
+    except Exception as e:
+        logger.error(f"Multi-document summarization failed: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Multi-document analysis failed: {str(e)}"
+        )
+
+    return MultiDocumentSummaryResponse(
+        mode=payload.mode,
+        level=payload.level,
+        article_count=len(articles),
+        summary=final_summary,
+        method="groq_multi",
+    )

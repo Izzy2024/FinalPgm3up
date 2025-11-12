@@ -170,6 +170,20 @@ class BatchSummaryRequest(BaseModel):
     combined_max_sentences: Optional[int] = None
 
 
+class MultiDocumentSummaryRequest(BaseModel):
+    article_ids: List[int]
+    mode: Literal["synthesis", "comparison", "gaps"] = "synthesis"
+    level: Literal["executive", "detailed", "exhaustive"] = "detailed"
+
+
+class MultiDocumentSummaryResponse(BaseModel):
+    mode: str
+    level: str
+    article_count: int
+    summary: str
+    method: str = "groq_multi"
+
+
 class SummaryResult(BaseModel):
     article_id: int
     title: Optional[str] = None

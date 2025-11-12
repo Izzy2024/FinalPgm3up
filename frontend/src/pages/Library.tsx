@@ -14,6 +14,8 @@ import type {
   BatchSummaryResult,
   SummaryMethod,
   SummaryLevel,
+  MultiDocMode,
+  MultiDocumentSummaryResponse,
   LibraryStats,
   UserIndex,
 } from "../services/api";
@@ -102,6 +104,9 @@ export default function Library() {
   const [combinedMethod, setCombinedMethod] = useState<string | null>(null);
   const [showSummaryModal, setShowSummaryModal] = useState(false);
   const [summaryError, setSummaryError] = useState("");
+  const [multiDocMode, setMultiDocMode] = useState<MultiDocMode>("synthesis");
+  const [multiDocResult, setMultiDocResult] = useState<MultiDocumentSummaryResponse | null>(null);
+  const [showMultiDocModal, setShowMultiDocModal] = useState(false);
   const [creatingIndex, setCreatingIndex] = useState(false);
   const [newIndexName, setNewIndexName] = useState("");
   const [newIndexKeywords, setNewIndexKeywords] = useState("");
@@ -305,6 +310,35 @@ export default function Library() {
     } catch (err: any) {
       const detail =
         err?.response?.data?.detail || "Unable to summarize the selected articles.";
+      setSummaryError(detail);
+    } finally {
+      setSummaryLoading(false);
+    }
+  };
+
+  const handleMultiDocSummary = async () => {
+    if (selectedForSummary.length < 2) {
+      setSummaryError("Multi-document analysis requires at least 2 articles.");
+      return;
+    }
+    if (selectedForSummary.length > 10) {
+      setSummaryError("Maximum 10 articles allowed for multi-document analysis.");
+      return;
+    }
+
+    setSummaryLoading(true);
+    setSummaryError("");
+    try {
+      const res = await articlesAPI.multiDocumentSummarize({
+        article_ids: selectedForSummary,
+        mode: multiDocMode,
+        level: summaryLevel,
+      });
+      setMultiDocResult(res.data);
+      setShowMultiDocModal(true);
+    } catch (err: any) {
+      const detail =
+        err?.response?.data?.detail || "Unable to generate multi-document analysis.";
       setSummaryError(detail);
     } finally {
       setSummaryLoading(false);
@@ -605,6 +639,41 @@ export default function Library() {
                   {summaryLevel === 'exhaustive' && '8-10 págs (~4,000 palabras, 40 min)'}
                 </p>
               </div>
+
+              <div>
+                <p className="text-xs uppercase text-gray-500 font-semibold">Multi-Doc Mode</p>
+                <div className="mt-2 flex items-center gap-2">
+                  <Button
+                    variant={multiDocMode === 'synthesis' ? 'neon' : 'secondary'}
+                    size="sm"
+                    onClick={() => setMultiDocMode('synthesis')}
+                    title="Síntesis: Integra temas comunes"
+                  >
+                    🔗 Síntesis
+                  </Button>
+                  <Button
+                    variant={multiDocMode === 'comparison' ? 'neon' : 'secondary'}
+                    size="sm"
+                    onClick={() => setMultiDocMode('comparison')}
+                    title="Comparación: Contrasta diferencias"
+                  >
+                    ⚖️ Comparación
+                  </Button>
+                  <Button
+                    variant={multiDocMode === 'gaps' ? 'neon' : 'secondary'}
+                    size="sm"
+                    onClick={() => setMultiDocMode('gaps')}
+                    title="Gaps: Identifica vacíos en literatura"
+                  >
+                    🔍 Gaps
+                  </Button>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  {multiDocMode === 'synthesis' && 'Integra hallazgos de múltiples estudios'}
+                  {multiDocMode === 'comparison' && 'Compara métodos y resultados'}
+                  {multiDocMode === 'gaps' && 'Identifica oportunidades de investigación'}
+                </p>
+              </div>
               <label className="flex items-center gap-2 text-sm text-gray-600 mt-4 lg:mt-0">
                 <input
                   type="checkbox"
@@ -618,16 +687,27 @@ export default function Library() {
                 Selected: <span className="font-semibold">{summarySelectedCount}</span>
               </p>
             </div>
-            <Button
-              variant="neon"
-              size="sm"
-              disabled={summarySelectedCount === 0 || summaryLoading}
-              onClick={handleSummarizeSelected}
-            >
-              {summaryLoading
-                ? "Summarizing..."
-                : `Summarize${summarySelectedCount > 0 ? ` (${summarySelectedCount})` : ""}`}
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                variant="neon"
+                size="sm"
+                disabled={summarySelectedCount === 0 || summaryLoading}
+                onClick={handleSummarizeSelected}
+              >
+                {summaryLoading
+                  ? "Summarizing..."
+                  : `Summarize${summarySelectedCount > 0 ? ` (${summarySelectedCount})` : ""}`}
+              </Button>
+              <Button
+                variant="neonGreen"
+                size="sm"
+                disabled={summarySelectedCount < 2 || summaryLoading}
+                onClick={handleMultiDocSummary}
+                title="Multi-document analysis (2-10 articles)"
+              >
+                🔬 Multi-Doc Analysis
+              </Button>
+            </div>
           </div>
           {summaryError && (
             <p className="text-sm text-red-600 mt-3">{summaryError}</p>
@@ -844,6 +924,56 @@ export default function Library() {
           combinedSummary={combinedSummary}
           combinedMethod={combinedMethod}
         />
+      )}
+
+      {showMultiDocModal && multiDocResult && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg shadow-lg max-w-6xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b border-gray-200 p-6 flex items-center justify-between">
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900">
+                  {multiDocResult.mode === 'synthesis' && '🔗 Síntesis de Literatura'}
+                  {multiDocResult.mode === 'comparison' && '⚖️ Análisis Comparativo'}
+                  {multiDocResult.mode === 'gaps' && '🔍 Análisis de Gaps'}
+                </h2>
+                <p className="text-sm text-gray-600 mt-1">
+                  {multiDocResult.article_count} artículos · Nivel {multiDocResult.level}
+                </p>
+              </div>
+              <button onClick={() => setShowMultiDocModal(false)} className="text-gray-500 hover:text-gray-700">
+                <XMarkIcon className="h-6 w-6" />
+              </button>
+            </div>
+
+            <div className="p-6">
+              <div className="prose max-w-none">
+                <div className="whitespace-pre-wrap text-gray-800 leading-relaxed">
+                  {multiDocResult.summary}
+                </div>
+              </div>
+
+              <div className="mt-6 flex justify-end gap-2">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => {
+                    navigator.clipboard.writeText(multiDocResult.summary);
+                    alert("Analysis copied to clipboard!");
+                  }}
+                >
+                  Copy Analysis
+                </Button>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={() => setShowMultiDocModal(false)}
+                >
+                  Close
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

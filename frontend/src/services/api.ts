@@ -56,6 +56,7 @@ export interface ArticleFilters {
 
 export type SummaryMethod = "auto" | "local" | "groq";
 export type SummaryLevel = "executive" | "detailed" | "exhaustive";
+export type MultiDocMode = "synthesis" | "comparison" | "gaps";
 
 export interface BatchSummaryPayload {
   article_ids: number[];
@@ -64,6 +65,20 @@ export interface BatchSummaryPayload {
   level?: SummaryLevel;
   combined?: boolean;
   combined_max_sentences?: number;
+}
+
+export interface MultiDocumentSummaryPayload {
+  article_ids: number[];
+  mode?: MultiDocMode;
+  level?: SummaryLevel;
+}
+
+export interface MultiDocumentSummaryResponse {
+  mode: string;
+  level: string;
+  article_count: number;
+  summary: string;
+  method: string;
 }
 
 export interface BatchSummaryResult {
@@ -107,6 +122,8 @@ export const articlesAPI = {
     apiClient.get(`/api/articles/${id}/bibliography/${format}`),
   summarize: (payload: BatchSummaryPayload) =>
     apiClient.post<BatchSummaryResponse>("/api/articles/summaries/batch", payload),
+  multiDocumentSummarize: (payload: MultiDocumentSummaryPayload) =>
+    apiClient.post<MultiDocumentSummaryResponse>("/api/articles/summaries/multi-document", payload),
 };
 
 export interface LibraryListParams {

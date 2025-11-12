@@ -1,7 +1,7 @@
 import logging
 import os
 import re
-from typing import Optional, Tuple, List
+from typing import Optional, Tuple, List, Dict
 
 import numpy as np
 import pdfplumber
@@ -9,6 +9,8 @@ import requests
 from sklearn.feature_extraction.text import TfidfVectorizer
 
 from app.models.article import Article
+from app.services.document_structure_extractor import DocumentStructureExtractor
+from app.services.chunked_summarizer import ChunkedSummarizer
 
 logger = logging.getLogger(__name__)
 
@@ -43,6 +45,10 @@ class ArticleSummarizer:
             }
         }
 
+        # Initialize advanced extractors
+        self.structure_extractor = DocumentStructureExtractor()
+        self.chunked_summarizer = None  # Lazy initialization when needed
+
     def summarize_article(
         self,
         article: Article,
@@ -50,9 +56,10 @@ class ArticleSummarizer:
         max_sentences: int = 5,
         max_pages: int = 5,
         level: str = "detailed",
+        use_structure_extraction: bool = True,
     ) -> Tuple[str, str]:
         """
-        Summarize an article at the specified level.
+        Summarize an article at the specified level with advanced features.
 
         Args:
             article: Article to summarize
@@ -60,12 +67,54 @@ class ArticleSummarizer:
             max_sentences: For local method
             max_pages: Pages to process
             level: "executive", "detailed", or "exhaustive"
+            use_structure_extraction: Try to extract document structure
+
+        Returns:
+            Tuple of (summary, method_used)
         """
         config = self.level_config.get(level, self.level_config["detailed"])
+
+        # Try to extract document structure if PDF
+        sections = {}
+        if use_structure_extraction and article.file_path and article.file_path.lower().endswith('.pdf'):
+            try:
+                sections = self.structure_extractor.extract_from_pdf(article.file_path)
+                if sections:
+                    logger.info(f"Extracted {len(sections)} sections from document")
+                    logger.info(f"Sections: {list(sections.keys())}")
+            except Exception as e:
+                logger.warning(f"Could not extract document structure: {e}")
+
+        # Get article text
         text = self.get_article_text(article, max_pages=config["max_pages"])
         if not text:
             raise ValueError("No text content available for summarization.")
 
+        # Decide if we need chunked processing
+        text_length = len(text)
+        logger.info(f"Document length: {text_length} characters")
+
+        # Use chunked summarizer for very long documents (> 30k chars with Groq)
+        if method in ["auto", "groq"] and text_length > 30000 and self.groq_api_key:
+            logger.info("Document is long, using ChunkedSummarizer")
+            if not self.chunked_summarizer:
+                self.chunked_summarizer = ChunkedSummarizer(
+                    self.groq_api_key,
+                    self.groq_model
+                )
+
+            try:
+                summary, _ = self.chunked_summarizer.summarize_long_document(
+                    text,
+                    level=level,
+                    sections=sections if sections else None
+                )
+                return summary, "groq_chunked"
+            except Exception as e:
+                logger.error(f"ChunkedSummarizer failed: {e}, falling back to regular")
+                # Fall through to regular summarization
+
+        # Regular summarization
         return self.summarize_text(
             text,
             method=method,
