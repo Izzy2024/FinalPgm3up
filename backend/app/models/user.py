@@ -23,6 +23,7 @@ class User(Base):
     user_libraries = relationship("UserLibrary", back_populates="user")
     recommendations = relationship("Recommendation", back_populates="user")
     categories = relationship("Category", back_populates="created_by_user")
+    indexes = relationship("UserIndex", back_populates="user")
 
     def __repr__(self):
         return f"<User(username={self.username}, email={self.email})>"

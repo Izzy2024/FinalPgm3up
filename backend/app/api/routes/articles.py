@@ -10,11 +10,21 @@ from pathlib import Path
 from bs4 import BeautifulSoup
 from app.core.database import get_db
 from app.core.security import get_current_user
-from app.core.schemas import ArticleResponse, ArticleCreate, ArticleUpdate
+from app.core.schemas import (
+    ArticleResponse,
+    ArticleCreate,
+    ArticleUpdate,
+    BatchSummaryRequest,
+    BatchSummaryResponse,
+    SummaryResult,
+)
 from app.services.metadata_extractor import MetadataExtractor
 from app.services.classifier import ArticleClassifier
 from app.services.bibliography_generator import BibliographyGenerator
-from app.models import User, Article, Category
+from app.services.summarizer import ArticleSummarizer
+from app.services.topic_classifier import TopicClassifier
+from app.models import User, Article, Category, UserLibrary
+from app.core.config import get_settings
 import logging
 
 router = APIRouter(prefix="/api/articles", tags=["articles"])
@@ -22,11 +32,35 @@ logger = logging.getLogger(__name__)
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent.parent
 UPLOAD_DIR = BASE_DIR / "data" / "uploads"
+settings = get_settings()
+topic_classifier = TopicClassifier()
 
 
 class UrlUpload(BaseModel):
     url: HttpUrl
     category_id: Optional[int] = None
+
+
+def _assign_topics(article: Article, extra_text: str = ""):
+    keywords = article.keywords or []
+    abstract = article.abstract or ""
+    detected = topic_classifier.detect_topics(
+        title=article.title or "",
+        abstract=abstract,
+        keywords=keywords,
+        extra_text=extra_text or "",
+    )
+    article.auto_topics = detected
+
+
+def _ensure_user_library_entry(db: Session, user_id: int, article_id: int):
+    existing = (
+        db.query(UserLibrary)
+        .filter(UserLibrary.user_id == user_id, UserLibrary.article_id == article_id)
+        .first()
+    )
+    if not existing:
+        db.add(UserLibrary(user_id=user_id, article_id=article_id, status="unread"))
 
 
 @router.post("/upload", response_model=ArticleResponse)
@@ -56,9 +90,11 @@ async def upload_article(
         logger.info(f"File saved to: {file_path}")
 
         metadata = {}
+        text_excerpt = ""
         if file_extension.lower() == "pdf":
             try:
                 metadata = MetadataExtractor.extract_from_pdf(str(file_path))
+                text_excerpt = metadata.get("text_excerpt") or ""
             except Exception as e:
                 logger.error(f"Error extracting PDF metadata: {e}")
                 metadata = {}
@@ -94,7 +130,11 @@ async def upload_article(
             status="active",
         )
 
+        _assign_topics(article, extra_text=text_excerpt)
+
         db.add(article)
+        db.flush()
+        _ensure_user_library_entry(db, current_user.id, article.id)
         db.commit()
         db.refresh(article)
         
@@ -192,9 +232,11 @@ async def upload_article_from_url(
         logger.info(f"File downloaded to: {file_path}")
 
         metadata = {}
+        text_excerpt = ""
         if file_extension == 'pdf':
             try:
                 metadata = MetadataExtractor.extract_from_pdf(str(file_path))
+                text_excerpt = metadata.get("text_excerpt") or ""
             except Exception as e:
                 logger.error(f"Error extracting PDF metadata: {e}")
 
@@ -229,7 +271,11 @@ async def upload_article_from_url(
             status="active",
         )
 
+        _assign_topics(article, extra_text=text_excerpt)
+
         db.add(article)
+        db.flush()
+        _ensure_user_library_entry(db, current_user.id, article.id)
         db.commit()
         db.refresh(article)
         
@@ -251,12 +297,62 @@ def list_articles(
     skip: int = 0,
     limit: int = 10,
     category_id: int = None,
+    keyword: Optional[str] = None,
+    start_year: Optional[int] = None,
+    end_year: Optional[int] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
     db: Session = Depends(get_db),
 ):
+    """
+    List articles with advanced filtering options:
+    - category_id: Filter by category
+    - keyword: Search in title, abstract, keywords, and authors
+    - start_year/end_year: Filter by publication year range
+    - start_date/end_date: Filter by upload date range (format: YYYY-MM-DD)
+    """
     query = db.query(Article).filter(Article.status == "active")
 
+    # Category filter
     if category_id:
         query = query.filter(Article.category_id == category_id)
+
+    # Keyword search (searches in title, abstract, keywords array, and authors array)
+    if keyword:
+        search_pattern = f"%{keyword}%"
+        query = query.filter(
+            (Article.title.ilike(search_pattern)) |
+            (Article.abstract.ilike(search_pattern)) |
+            (Article.keywords.any(keyword)) |
+            (Article.authors.any(keyword))
+        )
+
+    # Publication year range filter
+    if start_year:
+        query = query.filter(Article.publication_year >= start_year)
+    if end_year:
+        query = query.filter(Article.publication_year <= end_year)
+
+    # Upload date range filter
+    if start_date:
+        try:
+            start_datetime = datetime.fromisoformat(start_date)
+            query = query.filter(Article.created_at >= start_datetime)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid start_date format. Use YYYY-MM-DD")
+
+    if end_date:
+        try:
+            end_datetime = datetime.fromisoformat(end_date)
+            # Add one day to include the entire end date
+            from datetime import timedelta
+            end_datetime = end_datetime + timedelta(days=1)
+            query = query.filter(Article.created_at < end_datetime)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid end_date format. Use YYYY-MM-DD")
+
+    # Order by created_at descending (newest first)
+    query = query.order_by(Article.created_at.desc())
 
     articles = query.offset(skip).limit(limit).all()
     return articles
@@ -313,6 +409,86 @@ def delete_article(
     db.delete(article)
     db.commit()
     return {"message": "Article deleted"}
+
+
+@router.post("/summaries/batch", response_model=BatchSummaryResponse)
+def summarize_articles(
+    payload: BatchSummaryRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if not payload.article_ids:
+        raise HTTPException(status_code=400, detail="article_ids cannot be empty.")
+    if payload.max_sentences <= 0:
+        raise HTTPException(status_code=400, detail="max_sentences must be positive.")
+    if payload.combined_max_sentences is not None and payload.combined_max_sentences <= 0:
+        raise HTTPException(status_code=400, detail="combined_max_sentences must be positive.")
+
+    summarizer = ArticleSummarizer(settings.groq_api_key)
+    results: List[SummaryResult] = []
+    combined_sources: List[str] = []
+
+    for article_id in payload.article_ids:
+        article = db.query(Article).filter(Article.id == article_id, Article.status == "active").first()
+        if not article:
+            results.append(
+                SummaryResult(
+                    article_id=article_id,
+                    success=False,
+                    error="Article not found.",
+                )
+            )
+            continue
+
+        try:
+            article_text = summarizer.get_article_text(article)
+            if not article_text:
+                raise ValueError("Article has no extractable text to summarize.")
+
+            summary, method_used = summarizer.summarize_text(
+                article_text,
+                method=payload.method,
+                max_sentences=payload.max_sentences,
+            )
+
+            results.append(
+                SummaryResult(
+                    article_id=article.id,
+                    title=article.title,
+                    success=True,
+                    summary=summary,
+                    method=method_used,
+                )
+            )
+            combined_sources.append(article_text)
+        except Exception as exc:
+            logger.error("Failed to summarize article %s: %s", article.id, exc)
+            results.append(
+                SummaryResult(
+                    article_id=article.id,
+                    title=article.title,
+                    success=False,
+                    error=str(exc),
+                )
+            )
+
+    combined_summary = None
+    combined_method = None
+    if payload.combined and combined_sources:
+        try:
+            combined_summary, combined_method = summarizer.summarize_text(
+                " ".join(combined_sources),
+                method=payload.method,
+                max_sentences=payload.combined_max_sentences or max(payload.max_sentences, 5),
+            )
+        except Exception as exc:
+            logger.warning("Failed to generate combined summary: %s", exc)
+
+    return BatchSummaryResponse(
+        results=results,
+        combined_summary=combined_summary,
+        combined_method=combined_method,
+    )
 
 
 @router.get("/{article_id}/bibliography/{format}")

@@ -7,6 +7,7 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Library from "./pages/Library";
 import Upload from "./pages/Upload";
+import Articles from "./pages/Articles";
 import Recommendations from "./pages/Recommendations";
 
 const queryClient = new QueryClient();
@@ -21,6 +22,7 @@ export default function App() {
           <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
             <Route index element={<Dashboard />} />
             <Route path="library" element={<Library />} />
+            <Route path="articles" element={<Articles />} />
             <Route path="upload" element={<Upload />} />
             <Route path="recommendations" element={<Recommendations />} />
           </Route>
