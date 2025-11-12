@@ -55,11 +55,13 @@ export interface ArticleFilters {
 }
 
 export type SummaryMethod = "auto" | "local" | "groq";
+export type SummaryLevel = "executive" | "detailed" | "exhaustive";
 
 export interface BatchSummaryPayload {
   article_ids: number[];
   method?: SummaryMethod;
   max_sentences?: number;
+  level?: SummaryLevel;
   combined?: boolean;
   combined_max_sentences?: number;
 }

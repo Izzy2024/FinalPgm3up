@@ -513,14 +513,17 @@ def summarize_articles(
             continue
 
         try:
-            article_text = summarizer.get_article_text(article)
+            # Get article text with appropriate max_pages for the level
+            config = summarizer.level_config.get(payload.level, summarizer.level_config["detailed"])
+            article_text = summarizer.get_article_text(article, max_pages=config["max_pages"])
             if not article_text:
                 raise ValueError("Article has no extractable text to summarize.")
 
             summary, method_used = summarizer.summarize_text(
                 article_text,
                 method=payload.method,
-                max_sentences=payload.max_sentences,
+                max_sentences=config["max_sentences"],
+                level=payload.level,
             )
 
             results.append(
@@ -548,10 +551,12 @@ def summarize_articles(
     combined_method = None
     if payload.combined and combined_sources:
         try:
+            config = summarizer.level_config.get(payload.level, summarizer.level_config["detailed"])
             combined_summary, combined_method = summarizer.summarize_text(
                 " ".join(combined_sources),
                 method=payload.method,
-                max_sentences=payload.combined_max_sentences or max(payload.max_sentences, 5),
+                max_sentences=payload.combined_max_sentences or config["max_sentences"],
+                level=payload.level,
             )
         except Exception as exc:
             logger.warning("Failed to generate combined summary: %s", exc)

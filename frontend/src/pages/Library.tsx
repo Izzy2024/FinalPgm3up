@@ -13,6 +13,7 @@ import { libraryAPI, articlesAPI } from "../services/api";
 import type {
   BatchSummaryResult,
   SummaryMethod,
+  SummaryLevel,
   LibraryStats,
   UserIndex,
 } from "../services/api";
@@ -93,6 +94,7 @@ export default function Library() {
   const [bibliography, setBibliography] = useState<any>(null);
   const [selectedForSummary, setSelectedForSummary] = useState<number[]>([]);
   const [summaryMethod, setSummaryMethod] = useState<SummaryMethod>("groq");
+  const [summaryLevel, setSummaryLevel] = useState<SummaryLevel>("detailed");
   const [combineSummaries, setCombineSummaries] = useState(false);
   const [summaryLoading, setSummaryLoading] = useState(false);
   const [summaryResults, setSummaryResults] = useState<BatchSummaryResult[]>([]);
@@ -293,6 +295,7 @@ export default function Library() {
       const res = await articlesAPI.summarize({
         article_ids: selectedForSummary,
         method: summaryMethod,
+        level: summaryLevel,
         combined: combineSummaries,
       });
       setSummaryResults(res.data.results);
@@ -566,6 +569,41 @@ export default function Library() {
                     Python Local
                   </Button>
                 </div>
+              </div>
+
+              <div>
+                <p className="text-xs uppercase text-gray-500 font-semibold">Summary Level</p>
+                <div className="mt-2 flex items-center gap-2">
+                  <Button
+                    variant={summaryLevel === 'executive' ? 'primary' : 'secondary'}
+                    size="sm"
+                    onClick={() => setSummaryLevel('executive')}
+                    title="Ejecutivo: 1 página (~500 palabras)"
+                  >
+                    📄 Ejecutivo
+                  </Button>
+                  <Button
+                    variant={summaryLevel === 'detailed' ? 'primary' : 'secondary'}
+                    size="sm"
+                    onClick={() => setSummaryLevel('detailed')}
+                    title="Detallado: 3-4 páginas (~1,800 palabras)"
+                  >
+                    📋 Detallado
+                  </Button>
+                  <Button
+                    variant={summaryLevel === 'exhaustive' ? 'primary' : 'secondary'}
+                    size="sm"
+                    onClick={() => setSummaryLevel('exhaustive')}
+                    title="Exhaustivo: 8-10 páginas (~4,000 palabras)"
+                  >
+                    📚 Exhaustivo
+                  </Button>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  {summaryLevel === 'executive' && '1 pág (~500 palabras, 5 min)'}
+                  {summaryLevel === 'detailed' && '3-4 págs (~1,800 palabras, 15 min)'}
+                  {summaryLevel === 'exhaustive' && '8-10 págs (~4,000 palabras, 40 min)'}
+                </p>
               </div>
               <label className="flex items-center gap-2 text-sm text-gray-600 mt-4 lg:mt-0">
                 <input

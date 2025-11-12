@@ -165,6 +165,7 @@ class BatchSummaryRequest(BaseModel):
     article_ids: List[int]
     method: Literal["auto", "local", "groq"] = "auto"
     max_sentences: int = 5
+    level: Literal["executive", "detailed", "exhaustive"] = "detailed"
     combined: bool = False
     combined_max_sentences: Optional[int] = None
 
