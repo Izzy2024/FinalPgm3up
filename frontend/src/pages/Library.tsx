@@ -790,7 +790,7 @@ export default function Library() {
             </TableHeader>
             <TableBody>
               {items.map((item) => (
-                <TableRow key={`${item.id}-${item.article_id}`} className="group">
+                <TableRow key={`${item.id}-${item.article_id}`}>
                   <TableCell className="w-12">
                     <input
                       type="checkbox"
@@ -837,7 +837,7 @@ export default function Library() {
                           <p className="font-medium text-gray-900 flex-1">{item.title}</p>
                           <button
                             onClick={() => handleStartEditTitle(item.article_id, item.title)}
-                            className="p-1 text-blue-600 hover:text-blue-700 opacity-0 group-hover:opacity-100 transition-opacity"
+                            className="p-1 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded transition-colors"
                             title="Edit title"
                           >
                             <PencilIcon className="h-4 w-4" />
