@@ -7,6 +7,8 @@ import {
   XMarkIcon,
   SparklesIcon,
   BeakerIcon,
+  PencilIcon,
+  CheckIcon,
 } from "@heroicons/react/24/outline";
 import { StarIcon as StarSolidIcon } from "@heroicons/react/24/solid";
 import { libraryAPI, articlesAPI } from "../services/api";
@@ -111,6 +113,8 @@ export default function Library() {
   const [newIndexName, setNewIndexName] = useState("");
   const [newIndexKeywords, setNewIndexKeywords] = useState("");
   const [newIndexColor, setNewIndexColor] = useState(DEFAULT_INDEX_COLOR);
+  const [editingArticleId, setEditingArticleId] = useState<number | null>(null);
+  const [editedTitle, setEditedTitle] = useState("");
   const limit = 10;
 
   useEffect(() => {
@@ -380,6 +384,37 @@ export default function Library() {
     }
   };
 
+  const handleStartEditTitle = (articleId: number, currentTitle: string) => {
+    setEditingArticleId(articleId);
+    setEditedTitle(currentTitle);
+  };
+
+  const handleSaveTitle = async (articleId: number) => {
+    if (!editedTitle.trim()) {
+      setError("Title cannot be empty");
+      return;
+    }
+
+    try {
+      await articlesAPI.update(articleId, { title: editedTitle.trim() });
+      setItems((prev) =>
+        prev.map((item) =>
+          item.article_id === articleId ? { ...item, title: editedTitle.trim() } : item
+        )
+      );
+      setEditingArticleId(null);
+      setEditedTitle("");
+    } catch (err: any) {
+      setError("Failed to update article title");
+      console.error(err);
+    }
+  };
+
+  const handleCancelEditTitle = () => {
+    setEditingArticleId(null);
+    setEditedTitle("");
+  };
+
   const summarySelectedCount = selectedForSummary.length;
   const summarySuccessCount = summaryResults.filter((result) => result.success).length;
   const summaryFailedCount = summaryResults.length - summarySuccessCount;
@@ -578,103 +613,106 @@ export default function Library() {
       </div>
 
       {items.length > 0 && (
-        <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-            <div className="flex flex-wrap gap-3 items-center">
-              <div>
-                <p className="text-xs uppercase text-gray-500 font-semibold">Summary Method</p>
-                <div className="mt-2 flex items-center gap-2">
-                  <Button
-                    variant={summaryMethod === 'groq' ? 'neon' : 'secondary'}
-                    size="sm"
-                    onClick={() => setSummaryMethod('groq')}
-                    title="AI-powered summary (Groq)"
-                  >
-                    <SparklesIcon className="h-4 w-4 mr-2" />
-                    IA (Groq)
-                  </Button>
-                  <Button
-                    variant={summaryMethod === 'local' ? 'neonGreen' : 'secondary'}
-                    size="sm"
-                    onClick={() => setSummaryMethod('local')}
-                    title="Local Python extractive summary"
-                  >
-                    <BeakerIcon className="h-4 w-4 mr-2" />
-                    Python Local
-                  </Button>
-                </div>
+        <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm space-y-4">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <p className="text-xs uppercase text-gray-500 font-semibold">Summary Method</p>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant={summaryMethod === 'groq' ? 'neon' : 'secondary'}
+                  size="sm"
+                  onClick={() => setSummaryMethod('groq')}
+                  title="AI-powered summary (Groq)"
+                >
+                  <SparklesIcon className="h-4 w-4 mr-2" />
+                  IA (Groq)
+                </Button>
+                <Button
+                  variant={summaryMethod === 'local' ? 'neonGreen' : 'secondary'}
+                  size="sm"
+                  onClick={() => setSummaryMethod('local')}
+                  title="Local Python extractive summary"
+                >
+                  <BeakerIcon className="h-4 w-4 mr-2" />
+                  Python Local
+                </Button>
               </div>
+            </div>
 
-              <div>
-                <p className="text-xs uppercase text-gray-500 font-semibold">Summary Level</p>
-                <div className="mt-2 flex items-center gap-2">
-                  <Button
-                    variant={summaryLevel === 'executive' ? 'primary' : 'secondary'}
-                    size="sm"
-                    onClick={() => setSummaryLevel('executive')}
-                    title="Ejecutivo: 1 página (~500 palabras)"
-                  >
-                    📄 Ejecutivo
-                  </Button>
-                  <Button
-                    variant={summaryLevel === 'detailed' ? 'primary' : 'secondary'}
-                    size="sm"
-                    onClick={() => setSummaryLevel('detailed')}
-                    title="Detallado: 3-4 páginas (~1,800 palabras)"
-                  >
-                    📋 Detallado
-                  </Button>
-                  <Button
-                    variant={summaryLevel === 'exhaustive' ? 'primary' : 'secondary'}
-                    size="sm"
-                    onClick={() => setSummaryLevel('exhaustive')}
-                    title="Exhaustivo: 8-10 páginas (~4,000 palabras)"
-                  >
-                    📚 Exhaustivo
-                  </Button>
-                </div>
-                <p className="text-xs text-gray-500 mt-1">
-                  {summaryLevel === 'executive' && '1 pág (~500 palabras, 5 min)'}
-                  {summaryLevel === 'detailed' && '3-4 págs (~1,800 palabras, 15 min)'}
-                  {summaryLevel === 'exhaustive' && '8-10 págs (~4,000 palabras, 40 min)'}
-                </p>
+            <div className="space-y-2">
+              <p className="text-xs uppercase text-gray-500 font-semibold">Summary Level</p>
+              <div className="flex items-center gap-2 flex-wrap">
+                <Button
+                  variant={summaryLevel === 'executive' ? 'primary' : 'secondary'}
+                  size="sm"
+                  onClick={() => setSummaryLevel('executive')}
+                  title="Ejecutivo: 1 página (~500 palabras)"
+                >
+                  📄 Ejecutivo
+                </Button>
+                <Button
+                  variant={summaryLevel === 'detailed' ? 'primary' : 'secondary'}
+                  size="sm"
+                  onClick={() => setSummaryLevel('detailed')}
+                  title="Detallado: 3-4 páginas (~1,800 palabras)"
+                >
+                  📋 Detallado
+                </Button>
+                <Button
+                  variant={summaryLevel === 'exhaustive' ? 'primary' : 'secondary'}
+                  size="sm"
+                  onClick={() => setSummaryLevel('exhaustive')}
+                  title="Exhaustivo: 8-10 páginas (~4,000 palabras)"
+                >
+                  📚 Exhaustivo
+                </Button>
               </div>
+              <p className="text-xs text-gray-500">
+                {summaryLevel === 'executive' && '1 pág (~500 palabras, 5 min)'}
+                {summaryLevel === 'detailed' && '3-4 págs (~1,800 palabras, 15 min)'}
+                {summaryLevel === 'exhaustive' && '8-10 págs (~4,000 palabras, 40 min)'}
+              </p>
+            </div>
 
-              <div>
-                <p className="text-xs uppercase text-gray-500 font-semibold">Multi-Doc Mode</p>
-                <div className="mt-2 flex items-center gap-2">
-                  <Button
-                    variant={multiDocMode === 'synthesis' ? 'neon' : 'secondary'}
-                    size="sm"
-                    onClick={() => setMultiDocMode('synthesis')}
-                    title="Síntesis: Integra temas comunes"
-                  >
-                    🔗 Síntesis
-                  </Button>
-                  <Button
-                    variant={multiDocMode === 'comparison' ? 'neon' : 'secondary'}
-                    size="sm"
-                    onClick={() => setMultiDocMode('comparison')}
-                    title="Comparación: Contrasta diferencias"
-                  >
-                    ⚖️ Comparación
-                  </Button>
-                  <Button
-                    variant={multiDocMode === 'gaps' ? 'neon' : 'secondary'}
-                    size="sm"
-                    onClick={() => setMultiDocMode('gaps')}
-                    title="Gaps: Identifica vacíos en literatura"
-                  >
-                    🔍 Gaps
-                  </Button>
-                </div>
-                <p className="text-xs text-gray-500 mt-1">
-                  {multiDocMode === 'synthesis' && 'Integra hallazgos de múltiples estudios'}
-                  {multiDocMode === 'comparison' && 'Compara métodos y resultados'}
-                  {multiDocMode === 'gaps' && 'Identifica oportunidades de investigación'}
-                </p>
+            <div className="space-y-2">
+              <p className="text-xs uppercase text-gray-500 font-semibold">Multi-Doc Mode</p>
+              <div className="flex items-center gap-2 flex-wrap">
+                <Button
+                  variant={multiDocMode === 'synthesis' ? 'neon' : 'secondary'}
+                  size="sm"
+                  onClick={() => setMultiDocMode('synthesis')}
+                  title="Síntesis: Integra temas comunes"
+                >
+                  🔗 Síntesis
+                </Button>
+                <Button
+                  variant={multiDocMode === 'comparison' ? 'neon' : 'secondary'}
+                  size="sm"
+                  onClick={() => setMultiDocMode('comparison')}
+                  title="Comparación: Contrasta diferencias"
+                >
+                  ⚖️ Comparación
+                </Button>
+                <Button
+                  variant={multiDocMode === 'gaps' ? 'neon' : 'secondary'}
+                  size="sm"
+                  onClick={() => setMultiDocMode('gaps')}
+                  title="Gaps: Identifica vacíos en literatura"
+                >
+                  🔍 Gaps
+                </Button>
               </div>
-              <label className="flex items-center gap-2 text-sm text-gray-600 mt-4 lg:mt-0">
+              <p className="text-xs text-gray-500">
+                {multiDocMode === 'synthesis' && 'Integra hallazgos de múltiples estudios'}
+                {multiDocMode === 'comparison' && 'Compara métodos y resultados'}
+                {multiDocMode === 'gaps' && 'Identifica oportunidades de investigación'}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-3 border-t border-gray-200">
+            <div className="flex items-center gap-4">
+              <label className="flex items-center gap-2 text-sm text-gray-600">
                 <input
                   type="checkbox"
                   className="form-checkbox h-4 w-4 text-primary-600"
@@ -683,7 +721,7 @@ export default function Library() {
                 />
                 Generate combined summary
               </label>
-              <p className="text-sm text-gray-500 mt-4 lg:mt-0">
+              <p className="text-sm text-gray-500">
                 Selected: <span className="font-semibold">{summarySelectedCount}</span>
               </p>
             </div>
@@ -709,8 +747,9 @@ export default function Library() {
               </Button>
             </div>
           </div>
+
           {summaryError && (
-            <p className="text-sm text-red-600 mt-3">{summaryError}</p>
+            <p className="text-sm text-red-600">{summaryError}</p>
           )}
         </div>
       )}
@@ -751,7 +790,7 @@ export default function Library() {
             </TableHeader>
             <TableBody>
               {items.map((item) => (
-                <TableRow key={`${item.id}-${item.article_id}`}>
+                <TableRow key={`${item.id}-${item.article_id}`} className="group">
                   <TableCell className="w-12">
                     <input
                       type="checkbox"
@@ -762,7 +801,49 @@ export default function Library() {
                   </TableCell>
                   <TableCell>
                     <div>
-                      <p className="font-medium text-gray-900">{item.title}</p>
+                      {editingArticleId === item.article_id ? (
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="text"
+                            value={editedTitle}
+                            onChange={(e) => setEditedTitle(e.target.value)}
+                            className="flex-1 px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                handleSaveTitle(item.article_id);
+                              } else if (e.key === 'Escape') {
+                                handleCancelEditTitle();
+                              }
+                            }}
+                            autoFocus
+                          />
+                          <button
+                            onClick={() => handleSaveTitle(item.article_id)}
+                            className="p-1 text-green-600 hover:text-green-700"
+                            title="Save"
+                          >
+                            <CheckIcon className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={handleCancelEditTitle}
+                            className="p-1 text-gray-500 hover:text-gray-700"
+                            title="Cancel"
+                          >
+                            <XMarkIcon className="h-4 w-4" />
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <p className="font-medium text-gray-900 flex-1">{item.title}</p>
+                          <button
+                            onClick={() => handleStartEditTitle(item.article_id, item.title)}
+                            className="p-1 text-blue-600 hover:text-blue-700 opacity-0 group-hover:opacity-100 transition-opacity"
+                            title="Edit title"
+                          >
+                            <PencilIcon className="h-4 w-4" />
+                          </button>
+                        </div>
+                      )}
                       <p className="text-xs text-gray-500 mt-1">
                         Added {new Date(item.added_at).toLocaleDateString()}
                       </p>
