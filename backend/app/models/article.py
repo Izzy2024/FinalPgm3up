@@ -23,6 +23,7 @@ class Article(Base):
     status = Column(String(20), default="active")
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    auto_topics = Column(ARRAY(String), default=list)
 
     category = relationship("Category", back_populates="articles")
     uploaded_by_user = relationship("User", back_populates="articles")

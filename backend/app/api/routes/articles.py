@@ -10,11 +10,21 @@ from pathlib import Path
 from bs4 import BeautifulSoup
 from app.core.database import get_db
 from app.core.security import get_current_user
-from app.core.schemas import ArticleResponse, ArticleCreate, ArticleUpdate
+from app.core.schemas import (
+    ArticleResponse,
+    ArticleCreate,
+    ArticleUpdate,
+    BatchSummaryRequest,
+    BatchSummaryResponse,
+    SummaryResult,
+)
 from app.services.metadata_extractor import MetadataExtractor
 from app.services.classifier import ArticleClassifier
 from app.services.bibliography_generator import BibliographyGenerator
-from app.models import User, Article, Category
+from app.services.summarizer import ArticleSummarizer
+from app.services.topic_classifier import TopicClassifier
+from app.models import User, Article, Category, UserLibrary
+from app.core.config import get_settings
 import logging
 
 router = APIRouter(prefix="/api/articles", tags=["articles"])
@@ -22,11 +32,35 @@ logger = logging.getLogger(__name__)
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent.parent
 UPLOAD_DIR = BASE_DIR / "data" / "uploads"
+settings = get_settings()
+topic_classifier = TopicClassifier()
 
 
 class UrlUpload(BaseModel):
     url: HttpUrl
     category_id: Optional[int] = None
+
+
+def _assign_topics(article: Article, extra_text: str = ""):
+    keywords = article.keywords or []
+    abstract = article.abstract or ""
+    detected = topic_classifier.detect_topics(
+        title=article.title or "",
+        abstract=abstract,
+        keywords=keywords,
+        extra_text=extra_text or "",
+    )
+    article.auto_topics = detected
+
+
+def _ensure_user_library_entry(db: Session, user_id: int, article_id: int):
+    existing = (
+        db.query(UserLibrary)
+        .filter(UserLibrary.user_id == user_id, UserLibrary.article_id == article_id)
+        .first()
+    )
+    if not existing:
+        db.add(UserLibrary(user_id=user_id, article_id=article_id, status="unread"))
 
 
 @router.post("/upload", response_model=ArticleResponse)
@@ -56,9 +90,11 @@ async def upload_article(
         logger.info(f"File saved to: {file_path}")
 
         metadata = {}
+        text_excerpt = ""
         if file_extension.lower() == "pdf":
             try:
                 metadata = MetadataExtractor.extract_from_pdf(str(file_path))
+                text_excerpt = metadata.get("text_excerpt") or ""
             except Exception as e:
                 logger.error(f"Error extracting PDF metadata: {e}")
                 metadata = {}
@@ -94,7 +130,11 @@ async def upload_article(
             status="active",
         )
 
+        _assign_topics(article, extra_text=text_excerpt)
+
         db.add(article)
+        db.flush()
+        _ensure_user_library_entry(db, current_user.id, article.id)
         db.commit()
         db.refresh(article)
         
@@ -192,9 +232,11 @@ async def upload_article_from_url(
         logger.info(f"File downloaded to: {file_path}")
 
         metadata = {}
+        text_excerpt = ""
         if file_extension == 'pdf':
             try:
                 metadata = MetadataExtractor.extract_from_pdf(str(file_path))
+                text_excerpt = metadata.get("text_excerpt") or ""
             except Exception as e:
                 logger.error(f"Error extracting PDF metadata: {e}")
 
@@ -229,7 +271,11 @@ async def upload_article_from_url(
             status="active",
         )
 
+        _assign_topics(article, extra_text=text_excerpt)
+
         db.add(article)
+        db.flush()
+        _ensure_user_library_entry(db, current_user.id, article.id)
         db.commit()
         db.refresh(article)
         
@@ -363,6 +409,86 @@ def delete_article(
     db.delete(article)
     db.commit()
     return {"message": "Article deleted"}
+
+
+@router.post("/summaries/batch", response_model=BatchSummaryResponse)
+def summarize_articles(
+    payload: BatchSummaryRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if not payload.article_ids:
+        raise HTTPException(status_code=400, detail="article_ids cannot be empty.")
+    if payload.max_sentences <= 0:
+        raise HTTPException(status_code=400, detail="max_sentences must be positive.")
+    if payload.combined_max_sentences is not None and payload.combined_max_sentences <= 0:
+        raise HTTPException(status_code=400, detail="combined_max_sentences must be positive.")
+
+    summarizer = ArticleSummarizer(settings.groq_api_key)
+    results: List[SummaryResult] = []
+    combined_sources: List[str] = []
+
+    for article_id in payload.article_ids:
+        article = db.query(Article).filter(Article.id == article_id, Article.status == "active").first()
+        if not article:
+            results.append(
+                SummaryResult(
+                    article_id=article_id,
+                    success=False,
+                    error="Article not found.",
+                )
+            )
+            continue
+
+        try:
+            article_text = summarizer.get_article_text(article)
+            if not article_text:
+                raise ValueError("Article has no extractable text to summarize.")
+
+            summary, method_used = summarizer.summarize_text(
+                article_text,
+                method=payload.method,
+                max_sentences=payload.max_sentences,
+            )
+
+            results.append(
+                SummaryResult(
+                    article_id=article.id,
+                    title=article.title,
+                    success=True,
+                    summary=summary,
+                    method=method_used,
+                )
+            )
+            combined_sources.append(article_text)
+        except Exception as exc:
+            logger.error("Failed to summarize article %s: %s", article.id, exc)
+            results.append(
+                SummaryResult(
+                    article_id=article.id,
+                    title=article.title,
+                    success=False,
+                    error=str(exc),
+                )
+            )
+
+    combined_summary = None
+    combined_method = None
+    if payload.combined and combined_sources:
+        try:
+            combined_summary, combined_method = summarizer.summarize_text(
+                " ".join(combined_sources),
+                method=payload.method,
+                max_sentences=payload.combined_max_sentences or max(payload.max_sentences, 5),
+            )
+        except Exception as exc:
+            logger.warning("Failed to generate combined summary: %s", exc)
+
+    return BatchSummaryResponse(
+        results=results,
+        combined_summary=combined_summary,
+        combined_method=combined_method,
+    )
 
 
 @router.get("/{article_id}/bibliography/{format}")

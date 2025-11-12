@@ -30,6 +30,26 @@ export default {
       },
       boxShadow: {
         'soft': '0 2px 15px -3px rgba(0, 0, 0, 0.07), 0 10px 20px -2px rgba(0, 0, 0, 0.04)',
+        'neon': '0 0 12px rgba(124,58,237,0.6), 0 0 24px rgba(255,0,230,0.4)',
+      },
+      keyframes: {
+        gradient: {
+          '0%, 100%': { backgroundPosition: '0% 50%' },
+          '50%': { backgroundPosition: '100% 50%' },
+        },
+        glow: {
+          '0%, 100%': { boxShadow: '0 0 12px rgba(124,58,237,0.6), 0 0 24px rgba(255,0,230,0.4)' },
+          '50%': { boxShadow: '0 0 20px rgba(124,58,237,0.85), 0 0 36px rgba(255,0,230,0.65)' },
+        },
+        shine: {
+          '0%': { transform: 'translateX(-100%)' },
+          '100%': { transform: 'translateX(100%)' },
+        },
+      },
+      animation: {
+        'gradient-x': 'gradient 3s ease infinite',
+        'glow': 'glow 2.4s ease-in-out infinite',
+        'shine': 'shine 1.2s linear infinite',
       },
     },
   },

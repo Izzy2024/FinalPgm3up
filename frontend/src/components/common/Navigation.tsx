@@ -13,6 +13,7 @@ export default function Navigation() {
   const navLinks = [
     { to: "/", label: "Dashboard" },
     { to: "/library", label: "Library" },
+    { to: "/articles", label: "Articles" },
     { to: "/upload", label: "Upload" },
     { to: "/recommendations", label: "Recommendations" },
   ];

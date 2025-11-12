@@ -1,6 +1,6 @@
 from pydantic import BaseModel, EmailStr
 from datetime import datetime
-from typing import List, Optional
+from typing import List, Optional, Literal
 
 
 class UserBase(BaseModel):
@@ -80,6 +80,7 @@ class ArticleResponse(ArticleBase):
     status: str
     created_at: datetime
     updated_at: datetime
+    auto_topics: Optional[List[str]] = []
 
     class Config:
         from_attributes = True
@@ -99,6 +100,7 @@ class UserLibraryUpdate(BaseModel):
     status: Optional[str] = None
     notes: Optional[str] = None
     rating: Optional[int] = None
+    topics: Optional[List[str]] = None
 
 
 class UserLibraryResponse(UserLibraryBase):
@@ -146,6 +148,54 @@ class AnnotationResponse(AnnotationBase):
     id: int
     article_id: int
     user_id: int
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class LibraryEntryUpdate(BaseModel):
+    status: Optional[Literal["unread", "reading", "read"]] = None
+    notes: Optional[str] = None
+    rating: Optional[int] = None
+
+
+class BatchSummaryRequest(BaseModel):
+    article_ids: List[int]
+    method: Literal["auto", "local", "groq"] = "auto"
+    max_sentences: int = 5
+    combined: bool = False
+    combined_max_sentences: Optional[int] = None
+
+
+class SummaryResult(BaseModel):
+    article_id: int
+    title: Optional[str] = None
+    success: bool
+    summary: Optional[str] = None
+    method: Optional[str] = None
+    error: Optional[str] = None
+
+
+class BatchSummaryResponse(BaseModel):
+    results: List[SummaryResult]
+    combined_summary: Optional[str] = None
+    combined_method: Optional[str] = None
+
+
+class UserIndexBase(BaseModel):
+    name: str
+    keywords: List[str]
+    color: Optional[str] = "#2563eb"
+
+
+class UserIndexCreate(UserIndexBase):
+    pass
+
+
+class UserIndexResponse(UserIndexBase):
+    id: int
     created_at: datetime
     updated_at: datetime
 

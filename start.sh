@@ -1,6 +1,7 @@
 #!/bin/bash
 
 set -e
+set -o pipefail
 
 PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BACKEND_PORT=8000
@@ -40,6 +41,8 @@ check_backend_ready() {
         sleep 1
     done
     echo "   ⚠ Backend startup timeout"
+    echo "\n--- backend.log (last 120 lines) ---"
+    tail -n 120 "$PROJECT_DIR/backend.log" 2>/dev/null || true
     return 1
 }
 
@@ -77,8 +80,48 @@ fi
 
 source venv/bin/activate
 
+echo "   Checking for duplicate Alembic revisions..."
+if ls "${BACKEND_DIR}/alembic/versions"/*' 2.py' >/dev/null 2>&1; then
+    echo "   ⚠ Detected duplicate migration files (e.g., '* 2.py')."
+    echo "     Please delete or rename duplicates to keep only one file per Revision ID."
+    echo "     Aborting startup to avoid a stuck migration."
+    exit 1
+fi
+
+echo "   Verifying database connectivity..."
+PYTHONPATH="$BACKEND_DIR" python - <<'PY'
+from app.core.config import get_settings
+from sqlalchemy import create_engine, text
+import sys
+url = get_settings().database_url
+try:
+    eng = create_engine(url, pool_pre_ping=True)
+    with eng.connect() as conn:
+        conn.execute(text('SELECT 1'))
+except Exception as e:
+    print(f"DB connection failed: {e}")
+    sys.exit(2)
+PY
+db_check=$?
+if [ $db_check -ne 0 ]; then
+    echo "   ❌ Database connection failed."
+    echo "      Check DATABASE_URL in backend/.env and that Postgres is running."
+    exit 1
+else
+    echo "   ✓ Database reachable"
+fi
+
+echo "   Applying database migrations (alembic upgrade head)..."
+if ! PYTHONPATH="$BACKEND_DIR" alembic upgrade head; then
+    echo "   ❌ Alembic failed to upgrade to head."
+    echo "      Try inside backend/: 'PYTHONPATH=. alembic upgrade head' to see full errors."
+    echo "      Common cause: duplicate revision IDs in alembic/versions."
+    exit 1
+fi
+echo "   ✓ Migrations up to date"
+
 echo "   Starting uvicorn server on port $BACKEND_PORT..."
-uvicorn app.main:app --reload --port $BACKEND_PORT > "$PROJECT_DIR/backend.log" 2>&1 &
+PYTHONPATH="$BACKEND_DIR" uvicorn app.main:app --reload --port $BACKEND_PORT > "$PROJECT_DIR/backend.log" 2>&1 &
 BACKEND_PID=$!
 echo "   Backend PID: $BACKEND_PID"
 

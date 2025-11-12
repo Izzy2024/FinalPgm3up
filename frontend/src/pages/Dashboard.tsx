@@ -16,12 +16,15 @@ interface Stats {
   total_articles: number;
   read_articles: number;
   unread_articles: number;
+  reading_articles: number;
   average_rating: number;
   status_distribution: {
     unread: number;
     reading: number;
     read: number;
   };
+  topic_distribution: Record<string, number>;
+  default_segments: { topic: string; count: number }[];
 }
 
 interface UserProfile {
@@ -89,7 +92,7 @@ export default function Dashboard() {
   const statCards = [
     {
       label: "Total Articles",
-      value: stats?.total_articles || 0,
+      value: stats?.total_articles ?? 0,
       icon: DocumentTextIcon,
       color: "text-blue-600",
       bgColor: "bg-blue-50",
@@ -97,21 +100,38 @@ export default function Dashboard() {
     },
     {
       label: "Articles Read",
-      value: stats?.read_articles || 0,
+      value: stats?.read_articles ?? 0,
       icon: BookOpenIcon,
       color: "text-green-600",
       bgColor: "bg-green-50",
       change: "+8%",
     },
     {
+      label: "Reading Now",
+      value: stats?.reading_articles ?? 0,
+      icon: ClockIcon,
+      color: "text-purple-600",
+      bgColor: "bg-purple-50",
+      change: "+3%",
+    },
+    {
       label: "Average Rating",
-      value: stats?.average_rating.toFixed(1) || "0.0",
+      value:
+        stats && typeof stats.average_rating === "number"
+          ? stats.average_rating.toFixed(1)
+          : "0.0",
       icon: StarIcon,
       color: "text-yellow-600",
       bgColor: "bg-yellow-50",
       change: "+0.3",
     },
   ];
+
+  const topSegments =
+    stats?.default_segments
+      ?.filter((segment) => segment.count > 0)
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 4) || [];
 
   return (
     <div className="space-y-8">
@@ -127,7 +147,7 @@ export default function Dashboard() {
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {statCards.map((stat, idx) => (
           <Card key={idx} hover className="relative overflow-hidden">
             <div className="flex items-start justify-between">
@@ -215,6 +235,25 @@ export default function Dashboard() {
               Rate Articles
             </Button>
           </div>
+        </Card>
+
+        <Card>
+          <h3 className="text-lg font-semibold mb-6">Top Topics</h3>
+          {topSegments.length === 0 ? (
+            <p className="text-sm text-gray-500">No segments detected yet.</p>
+          ) : (
+            <div className="space-y-4">
+              {topSegments.map((segment) => (
+                <div key={segment.topic} className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium text-gray-900">{segment.topic}</p>
+                    <p className="text-xs text-gray-500">Articles tagged automatically</p>
+                  </div>
+                  <span className="text-2xl font-bold text-blue-600">{segment.count}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </Card>
       </div>
     </div>

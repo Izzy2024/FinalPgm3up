@@ -1,22 +1,16 @@
 import { XMarkIcon, CheckCircleIcon, XCircleIcon, DocumentDuplicateIcon } from "@heroicons/react/24/outline";
 import { Button } from "./Button";
-
-interface SummaryResult {
-  article_id: number;
-  title: string;
-  success: boolean;
-  summary?: string;
-  method?: string;
-  error?: string;
-}
+import type { BatchSummaryResult } from "../../services/api";
 
 interface BatchSummaryModalProps {
   isOpen: boolean;
   onClose: () => void;
-  results: SummaryResult[];
+  results: BatchSummaryResult[];
   total: number;
   successful: number;
   failed: number;
+  combinedSummary?: string | null;
+  combinedMethod?: string | null;
 }
 
 export function BatchSummaryModal({
@@ -26,17 +20,31 @@ export function BatchSummaryModal({
   total,
   successful,
   failed,
+  combinedSummary,
+  combinedMethod,
 }: BatchSummaryModalProps) {
   if (!isOpen) return null;
 
   const copyAllSummaries = () => {
+    const blocks: string[] = [];
+    if (combinedSummary) {
+      blocks.push(`## Combined Summary\n\n${combinedSummary}`);
+    }
     const successfulSummaries = results
       .filter(r => r.success && r.summary)
       .map(r => `### ${r.title}\n\n${r.summary}\n\n`)
       .join('\n---\n\n');
+    if (successfulSummaries) {
+      blocks.push(successfulSummaries);
+    }
+    if (blocks.length === 0) {
+      alert("No summaries available to copy.");
+      return;
+    }
+    const payload = blocks.join('\n\n');
 
-    navigator.clipboard.writeText(successfulSummaries);
-    alert("All summaries copied to clipboard!");
+    navigator.clipboard.writeText(payload);
+    alert("Summaries copied to clipboard!");
   };
 
   const copySummary = (summary: string) => {
@@ -62,7 +70,7 @@ export function BatchSummaryModal({
 
         <div className="p-6 space-y-4">
           {/* Action Buttons */}
-          {successful > 0 && (
+          {(successful > 0 || combinedSummary) && (
             <div className="flex justify-end mb-4">
               <Button
                 variant="secondary"
@@ -70,8 +78,28 @@ export function BatchSummaryModal({
                 onClick={copyAllSummaries}
               >
                 <DocumentDuplicateIcon className="h-4 w-4 mr-2" />
-                Copy All Summaries
+                Copy Available Summaries
               </Button>
+            </div>
+          )}
+
+          {combinedSummary && (
+            <div className="border rounded-lg p-4 bg-blue-50 border-blue-200">
+              <div className="flex items-start justify-between mb-2">
+                <div>
+                  <h3 className="font-semibold text-gray-900">Combined Summary</h3>
+                  {combinedMethod && (
+                    <p className="text-xs text-gray-500 mt-1">Method: {combinedMethod}</p>
+                  )}
+                </div>
+                <button
+                  onClick={() => copySummary(combinedSummary)}
+                  className="text-xs text-blue-600 hover:text-blue-800"
+                >
+                  Copy
+                </button>
+              </div>
+              <p className="text-sm text-gray-700 whitespace-pre-wrap">{combinedSummary}</p>
             </div>
           )}
 

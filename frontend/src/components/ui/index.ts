@@ -13,3 +13,4 @@ export { AdvancedFilter } from './AdvancedFilter';
 export type { FilterOptions } from './AdvancedFilter';
 export { AnnotationPanel } from './AnnotationPanel';
 export type { Annotation } from './AnnotationPanel';
+export { BatchSummaryModal } from './BatchSummaryModal';

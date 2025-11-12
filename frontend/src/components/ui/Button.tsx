@@ -2,7 +2,7 @@ import React from 'react';
 import { clsx } from 'clsx';
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'ghost' | 'danger';
+  variant?: 'primary' | 'secondary' | 'ghost' | 'danger' | 'neon' | 'neonGreen';
   size?: 'sm' | 'md' | 'lg';
   fullWidth?: boolean;
   icon?: React.ReactNode;
@@ -10,7 +10,7 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   children: React.ReactNode;
 }
 
-export const Button: React.FC<ButtonProps> = ({
+export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(({
   variant = 'primary',
   size = 'md',
   fullWidth = false,
@@ -19,8 +19,9 @@ export const Button: React.FC<ButtonProps> = ({
   children,
   className,
   disabled,
+  type = 'button',
   ...props
-}) => {
+}, ref) => {
   const baseStyles = 'inline-flex items-center justify-center font-medium rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2';
   
   const variants = {
@@ -28,6 +29,8 @@ export const Button: React.FC<ButtonProps> = ({
     secondary: 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 focus:ring-gray-500',
     ghost: 'bg-transparent text-gray-700 hover:bg-gray-100',
     danger: 'bg-red-600 text-white hover:bg-red-700 focus:ring-red-500',
+    neon: 'relative overflow-hidden text-white shadow-neon focus:ring-pink-500 bg-gradient-to-r from-[#00ffd5] via-[#7c3aed] to-[#ff00e6] bg-[length:200%_200%] animate-gradient-x',
+    neonGreen: 'relative overflow-hidden text-white shadow-neon focus:ring-emerald-500 bg-gradient-to-r from-[#22c55e] via-[#06b6d4] to-[#84cc16] bg-[length:200%_200%] animate-gradient-x',
   };
   
   const sizes = {
@@ -38,17 +41,26 @@ export const Button: React.FC<ButtonProps> = ({
   
   return (
     <button
+      ref={ref}
+      type={type}
       className={clsx(
         baseStyles,
         variants[variant],
         sizes[size],
         fullWidth && 'w-full',
         (disabled || loading) && 'opacity-50 cursor-not-allowed',
+        (variant === 'neon' || variant === 'neonGreen') && 'animate-glow',
         className
       )}
       disabled={disabled || loading}
       {...props}
     >
+      {variant === 'neon' && (
+        <span
+          aria-hidden
+          className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shine"
+        />
+      )}
       {loading && (
         <svg className="animate-spin -ml-1 mr-2 h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
@@ -59,7 +71,9 @@ export const Button: React.FC<ButtonProps> = ({
       {children}
     </button>
   );
-};
+});
+
+Button.displayName = 'Button';
 
 export const IconButton: React.FC<{
   icon: React.ReactNode;

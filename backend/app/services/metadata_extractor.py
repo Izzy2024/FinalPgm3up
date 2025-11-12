@@ -16,6 +16,7 @@ class MetadataExtractor:
             "publication_year": None,
             "journal": None,
             "doi": None,
+            "text_excerpt": None,
         }
 
         try:
@@ -61,10 +62,9 @@ class MetadataExtractor:
                     if year_match:
                         metadata["publication_year"] = int(year_match.group(0))
 
-                # Extract abstract from first few pages
-                full_text = "\n".join(
-                    [page.extract_text() or "" for page in pdf.pages[:3]]
-                )
+                # Extract abstract and a longer text excerpt from first few pages
+                pages_text = [page.extract_text() or "" for page in pdf.pages[:5]]
+                full_text = "\n".join(pages_text)
                 
                 if full_text:
                     # Look for abstract section
@@ -96,6 +96,11 @@ class MetadataExtractor:
                             keywords_list = re.split(r'[;,]', keywords_text)
                             metadata["keywords"] = [k.strip() for k in keywords_list if k.strip()][:10]
                             break
+
+                    # Save a compact excerpt of the text to improve topic detection
+                    compact = re.sub(r"\s+", " ", full_text).strip()
+                    if compact:
+                        metadata["text_excerpt"] = compact[:5000]
 
         except Exception as e:
             print(f"Error extracting PDF metadata: {e}")

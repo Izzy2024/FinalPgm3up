@@ -1,4 +1,5 @@
 from sqlalchemy import Column, Integer, Text, DateTime, ForeignKey, String, UniqueConstraint
+from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from app.core.database import Base
@@ -16,6 +17,7 @@ class UserLibrary(Base):
     rating = Column(Integer)
     added_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    user_topics = Column(ARRAY(String), nullable=True)
 
     user = relationship("User", back_populates="user_libraries")
     article = relationship("Article", back_populates="user_libraries")
