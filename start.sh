@@ -121,7 +121,12 @@ fi
 echo "   ✓ Migrations up to date"
 
 echo "   Starting uvicorn server on port $BACKEND_PORT..."
-PYTHONPATH="$BACKEND_DIR" uvicorn app.main:app --reload --port $BACKEND_PORT > "$PROJECT_DIR/backend.log" 2>&1 &
+# Exclude the venv folder from autoreload to avoid infinite reload loops on macOS
+PYTHONPATH="$BACKEND_DIR" uvicorn app.main:app \
+    --reload \
+    --reload-dir "$BACKEND_DIR/app" \
+    --reload-exclude "$BACKEND_DIR/venv" \
+    --port $BACKEND_PORT > "$PROJECT_DIR/backend.log" 2>&1 &
 BACKEND_PID=$!
 echo "   Backend PID: $BACKEND_PID"
 

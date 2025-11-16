@@ -8,7 +8,7 @@ interface ProtectedRouteProps {
 }
 
 export default function ProtectedRoute({ children }: ProtectedRouteProps) {
-  const { isAuthenticated, user, setUser } = useAuthStore();
+  const { isAuthenticated, user, setUser, logout } = useAuthStore();
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -17,15 +17,19 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
         try {
           const response = await authAPI.getCurrentUser();
           setUser(response.data);
-        } catch (error) {
-          console.error("Failed to load user:", error);
+        } catch (error: any) {
+          if (error?.response?.status === 401) {
+            logout();
+          } else {
+            console.error("Failed to load user:", error);
+          }
         }
       }
       setLoading(false);
     };
 
     loadUser();
-  }, [isAuthenticated, user, setUser]);
+  }, [isAuthenticated, user, setUser, logout]);
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;

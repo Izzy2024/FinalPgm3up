@@ -155,10 +155,8 @@ class AnnotationResponse(AnnotationBase):
         from_attributes = True
 
 
-class LibraryEntryUpdate(BaseModel):
-    status: Optional[Literal["unread", "reading", "read"]] = None
-    notes: Optional[str] = None
-    rating: Optional[int] = None
+class LibraryEntryUpdate(UserLibraryUpdate):
+    pass
 
 
 class BatchSummaryRequest(BaseModel):

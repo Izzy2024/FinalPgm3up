@@ -1,4 +1,5 @@
 import axios from "axios";
+import { useAuthStore } from "../context/authStore";
 
 const API_URL = (import.meta as any).env.VITE_API_URL || "http://localhost:8000";
 
@@ -13,6 +14,24 @@ apiClient.interceptors.request.use((config) => {
   }
   return config;
 });
+
+apiClient.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error?.response?.status === 401) {
+      const url = error.config?.url || "";
+      const isAuthEndpoint =
+        typeof url === "string" &&
+        (url.includes("/api/auth/token") || url.includes("/api/auth/register"));
+
+      if (!isAuthEndpoint) {
+        const { logout } = useAuthStore.getState();
+        logout();
+      }
+    }
+    return Promise.reject(error);
+  }
+);
 
 export interface UserRegistration {
   username: string;

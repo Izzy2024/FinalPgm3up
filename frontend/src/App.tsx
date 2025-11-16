@@ -11,11 +11,15 @@ import Articles from "./pages/Articles";
 import Recommendations from "./pages/Recommendations";
 
 const queryClient = new QueryClient();
+const routerFutureConfig = {
+  v7_startTransition: true,
+  v7_relativeSplatPath: true,
+} as const;
 
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
+      <BrowserRouter future={routerFutureConfig}>
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
