@@ -211,8 +211,8 @@ export const usersAPI = {
 };
 
 export const recommendationsAPI = {
-  get: (limit?: number) =>
-    apiClient.get("/api/recommendations/", { params: { limit } }),
+  get: (limit?: number, scope: "discover" | "library" = "discover") =>
+    apiClient.get("/api/recommendations/", { params: { limit, scope } }),
 };
 
 export interface AnnotationCreate {
