@@ -9,6 +9,7 @@ import Library from "./pages/Library";
 import Upload from "./pages/Upload";
 import Articles from "./pages/Articles";
 import Recommendations from "./pages/Recommendations";
+import ArticleReader from "./pages/ArticleReader";
 
 const queryClient = new QueryClient();
 const routerFutureConfig = {
@@ -26,6 +27,7 @@ export default function App() {
           <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
             <Route index element={<Dashboard />} />
             <Route path="library" element={<Library />} />
+            <Route path="library/article/:id" element={<ArticleReader />} />
             <Route path="articles" element={<Articles />} />
             <Route path="upload" element={<Upload />} />
             <Route path="recommendations" element={<Recommendations />} />

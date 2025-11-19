@@ -433,12 +433,35 @@ def list_articles(
     return articles
 
 
+from fastapi.responses import FileResponse
+
 @router.get("/{article_id}", response_model=ArticleResponse)
 def get_article(article_id: int, db: Session = Depends(get_db)):
     article = db.query(Article).filter(Article.id == article_id).first()
     if not article:
         raise HTTPException(status_code=404, detail="Article not found")
     return article
+
+
+@router.get("/{article_id}/view")
+def get_article_file(
+    article_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    article = db.query(Article).filter(Article.id == article_id).first()
+    if not article:
+        raise HTTPException(status_code=404, detail="Article not found")
+
+    # Check if file exists
+    if not os.path.exists(article.file_path):
+        raise HTTPException(status_code=404, detail="File not found on server")
+
+    return FileResponse(
+        path=article.file_path,
+        filename=os.path.basename(article.file_path),
+        media_type="application/pdf"
+    )
 
 
 @router.put("/{article_id}", response_model=ArticleResponse)
