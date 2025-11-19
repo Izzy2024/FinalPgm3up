@@ -1,0 +1,16 @@
+{
+  "rules": {
+    "version": "1.0.0",
+    "project_name": "SIGRAA",
+    "description": "Reglas y configuraciones base para el sistema SIGRAA",
+    "enforcement": {
+      "code_style": "strict",
+      "documentation": "required",
+      "tests": "required"
+    },
+    "workflow": {
+      "branches": ["main", "develop", "feature/*", "fix/*"],
+      "commit_convention": "conventional_commits"
+    }
+  }
+}
